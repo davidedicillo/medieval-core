@@ -91,6 +91,7 @@ try {
   if (process.platform === 'darwin' && spawnSync('swiftc',['--version'],{stdio:'ignore'}).status === 0) {
     const nativeBinary=path.join(root,'native-client-smoke');
     const repoRoot=fileURLToPath(new URL('../',import.meta.url));
+    const nativeSources=await fs.access(path.join(repoRoot,'ios','ListingEvalApp','Models.swift')).then(()=> 'ios/ListingEvalApp').catch(()=> 'ListingEvalApp');
     const run=(command,args,env=process.env)=>new Promise((resolve,reject)=>{
       const child=spawn(command,args,{cwd:repoRoot,env,stdio:['ignore','pipe','pipe']});
       let output='';child.stdout.on('data',(part)=>{output+=part;});child.stderr.on('data',(part)=>{output+=part;});
@@ -98,7 +99,7 @@ try {
       child.on('error',(error)=>{clearTimeout(timer);reject(error);});
       child.on('exit',(code)=>{clearTimeout(timer);if(code===0)resolve(output);else reject(new Error(output||'Native client test failed.'));});
     });
-    await run('swiftc',['ios/ListingEvalApp/Models.swift','ios/ListingEvalApp/APIClient.swift','scripts/platform-client-smoke.swift','-o',nativeBinary]);
+    await run('swiftc',[`${nativeSources}/Models.swift`,`${nativeSources}/APIClient.swift`,'scripts/platform-client-smoke.swift','-o',nativeBinary]);
     const output=await run(nativeBinary,[],{...process.env,MEDIEVAL_CLIENT_TEST_URL:baseURL,MEDIEVAL_CLIENT_TEST_TOKEN:owner.token,MEDIEVAL_CLIENT_TEST_USER:owner.user.id,MEDIEVAL_CLIENT_TEST_PROJECT:project.id,MEDIEVAL_CLIENT_TEST_BATCH:batch.id});
     assert.match(output,/Native account API smoke passed/);
     expectedResultRows += 1;
