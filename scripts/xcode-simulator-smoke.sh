@@ -146,7 +146,10 @@ if [[ -z "$SIMULATOR_ID" ]]; then
 fi
 
 printf 'Using simulator: %s\n' "$SIMULATOR_ID"
-open -a Simulator >/dev/null 2>&1 || true
+if [[ "${CI:-}" != "true" ]]; then
+  open -a Simulator >/dev/null 2>&1 || true
+fi
+printf 'Booting simulator without a graphical launch in CI.\n'
 xcrun simctl boot "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
 

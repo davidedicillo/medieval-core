@@ -69,6 +69,7 @@ jobs:
 
       - name: Capture real-image iOS showcase
         if: ${{ inputs.showcase_only }}
+        timeout-minutes: 15
         env:
           MEDIEVAL_SIMULATOR_USE_LOCAL_DEMO: "1"
           MEDIEVAL_SIMULATOR_DEMO_PROFILE: showcase
