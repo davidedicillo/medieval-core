@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      showcase_only:
+        description: Capture the real-image iOS example without running the full preflight
+        type: boolean
+        default: false
 
 jobs:
   platform:
+    if: ${{ !inputs.showcase_only }}
     name: Platform and API
     runs-on: ubuntu-latest
     steps:
@@ -49,15 +55,28 @@ jobs:
         run: bash -n scripts/preflight.sh
 
       - name: Run app preflight, simulator build, and launch
+        if: ${{ !inputs.showcase_only }}
         env:
           MEDIEVAL_RUN_XCODE_BUILD: "1"
           MEDIEVAL_RUN_XCODE_LAUNCH: "1"
           MEDIEVAL_RUN_BUNDLE_VERIFY: "1"
           MEDIEVAL_SIMULATOR_USE_LOCAL_DEMO: "1"
+          MEDIEVAL_SIMULATOR_DEMO_PROFILE: showcase
           MEDIEVAL_SIMULATOR_SCREENSHOT: ${{ runner.temp }}/medieval-demo.png
           MEDIEVAL_SIMULATOR_SCREENSHOT_DELAY: "3"
           MEDIEVAL_XCODE_DESTINATION: generic/platform=iOS Simulator
         run: ./scripts/preflight.sh
+
+      - name: Capture real-image iOS showcase
+        if: ${{ inputs.showcase_only }}
+        env:
+          MEDIEVAL_SIMULATOR_USE_LOCAL_DEMO: "1"
+          MEDIEVAL_SIMULATOR_DEMO_PROFILE: showcase
+          MEDIEVAL_SIMULATOR_SCREENSHOT: ${{ runner.temp }}/medieval-demo.png
+          MEDIEVAL_SIMULATOR_SCREENSHOT_DELAY: "6"
+        run: |
+          node --test scripts/demo-showcase.test.mjs
+          ./scripts/xcode-simulator-smoke.sh
 
       - name: Upload simulator screenshot
         uses: actions/upload-artifact@v4
@@ -67,6 +86,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload handoff bundle
+        if: ${{ !inputs.showcase_only }}
         uses: actions/upload-artifact@v4
         with:
           name: medieval-ios-handoff
