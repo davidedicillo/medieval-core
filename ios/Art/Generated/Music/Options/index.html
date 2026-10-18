@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MediEval Music Options</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-rounded, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #101720;
+      color: #f5e6c8;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(245, 197, 66, 0.12), transparent 32%),
+        linear-gradient(180deg, #111923, #0b1017);
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 22px;
+      color: #cbbf9f;
+      line-height: 1.45;
+    }
+
+    section {
+      margin: 14px 0;
+      padding: 18px;
+      border: 2px solid #876428;
+      background: #21170f;
+      box-shadow: 0 4px 0 #05070a;
+    }
+
+    h2 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      color: #f5c542;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 8px;
+      padding: 3px 8px;
+      background: #1f5aa8;
+      color: white;
+      font-weight: 800;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>MediEval Music Options</h1>
+    <p>Four original chiptune loops with a stronger medieval flavor. The recommended Court Minstrels track is bundled as the app default.</p>
+
+    <section>
+      <span class="tag">Recommended</span>
+      <h2>1. Court Minstrels 6/8</h2>
+      <p>Most medieval-feeling: lute-like plucks, modal melody, light percussion, and a longer 32-second arrangement for judging cards without getting too intense.</p>
+      <audio controls src="01-court-minstrels-6-8.wav"></audio>
+    </section>
+
+    <section>
+      <h2>2. Castle Fanfare</h2>
+      <p>More heroic and arcade-like. Good for the title screen or Guild Hall, but maybe a bit too bright for long eval sessions.</p>
+      <audio controls src="02-castle-fanfare.wav"></audio>
+    </section>
+
+    <section>
+      <h2>3. Dungeon Scribe</h2>
+      <p>Darker and calmer. Useful if the app should feel more focused and less bouncy while reviewing lots of cards.</p>
+      <audio controls src="03-dungeon-scribe.wav"></audio>
+    </section>
+
+    <section>
+      <h2>4. Tavern Quest Jig</h2>
+      <p>Fun and lively. Very medieval-gamey, but it may become the most repetitive during real work.</p>
+      <audio controls src="04-tavern-quest-jig.wav"></audio>
+    </section>
+  </main>
+</body>
+</html>

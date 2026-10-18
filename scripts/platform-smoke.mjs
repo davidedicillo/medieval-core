@@ -1,0 +1,150 @@
+#!/usr/bin/env node
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import net from 'node:net';
+import { randomBytes } from 'node:crypto';
+import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { Pool } from 'pg';
+import { createPlatform } from '../services/platform/server.mjs';
+import { createMailer } from '../services/platform/auth.mjs';
+import { startLocalPostgres } from './local-postgres.mjs';
+
+const root = await fs.mkdtemp('/tmp/medieval-platform-');
+let postgres, pool, platform;
+try {
+  postgres = await startLocalPostgres(path.join(root,'postgres'));
+  pool = new Pool(postgres.config);
+  const reservation = net.createServer();
+  await new Promise((resolve) => reservation.listen(0,'127.0.0.1',resolve));
+  const port = reservation.address().port;
+  await new Promise((resolve) => reservation.close(resolve));
+  const baseURL = `http://127.0.0.1:${port}`;
+  const mailer = createMailer({ local: true });
+  const secret = randomBytes(48).toString('base64url');
+  platform = await createPlatform({ pool, baseURL, secret, mailer, dataDir: path.join(root,'labels'), appId: 'TEST.com.medieval.app' });
+  await new Promise((resolve) => platform.server.listen(port,'127.0.0.1',resolve));
+  async function request(route,{ token, body, status = 200, origin = baseURL, cookie } = {}) {
+    const response = await fetch(baseURL+route,{ method: body === undefined ? 'GET':'POST', headers: {
+      ...(token ? { authorization: 'Bearer '+token }:{}), ...(body === undefined ? {} : { 'content-type':'application/json', origin }), ...(cookie ? { cookie }:{}),
+    }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const content = await response.text();
+    assert.equal(response.status,status,`${route}: ${response.status} ${content.slice(0,300)}`);
+    return { response, body: response.headers.get('content-type')?.includes('application/json') ? JSON.parse(content):content };
+  }
+  async function signIn(email,name) {
+    await request('/api/auth/email-otp/send-verification-otp',{ body:{email,type:'sign-in'} });
+    const otp=mailer.messages.find((m)=>m.to===email&&m.subject.includes('code')).text.match(/code is (\d{6})/)[1];
+    const result=await request('/api/auth/sign-in/email-otp',{body:{email,otp,name}});
+    assert(result.response.headers.get('set-auth-token'));
+    return { token:result.response.headers.get('set-auth-token'),user:result.body.user,cookie:result.response.headers.getSetCookie().map((s)=>s.split(';')[0]).join('; ') };
+  }
+  await request('/api/me',{status:401});
+  await request('/assets/platform.js');
+  await request('/assets/platform.css');
+  const aasa=(await request('/.well-known/apple-app-site-association')).body;
+  assert.equal(aasa.applinks.details[0].appID,'TEST.com.medieval.app');
+  const owner=await signIn('owner@example.com','Owner');
+  const reviewer=await signIn('reviewer@example.com','Reviewer');
+  const outsider=await signIn('outsider@example.com','Outsider');
+  const ownerReq=(route,body,status=200)=>request(route,{token:owner.token,body,status});
+  const reviewerReq=(route,body,status=200)=>request(route,{token:reviewer.token,body,status});
+  const workspace=(await ownerReq('/api/platform/workspaces',{name:'Evaluation Team'})).body.workspace;
+  const project=(await ownerReq('/api/platform/projects',{workspaceId:workspace.id,name:'MyFireRating'})).body.project;
+  const raw=await fs.readFile(new URL('../examples/myfire-rating.csv',import.meta.url),'utf8');
+  const input={projectId:project.id,name:'October validation',description:'Model v3',audience:'invited',adapter:'myfire-rating',format:'csv',raw};
+  assert.equal((await ownerReq('/api/platform/preview',input)).body.cardCount,9);
+  const batch=(await ownerReq('/api/platform/batches',input)).body.batch;
+  assert.equal(batch.status,'draft');
+  assert.equal((await ownerReq('/api/me/batches')).body.batches.length,0);
+  const invitation=(await ownerReq('/api/platform/invitations',{workspaceId:workspace.id,batchId:batch.id,email:reviewer.user.email})).body;
+  const inviteToken=invitation.inviteUrl.split('/').at(-1);
+  await request('/api/invitations/accept',{token:outsider.token,body:{token:inviteToken},status:403});
+  await reviewerReq('/api/invitations/accept',{token:inviteToken});
+  await reviewerReq('/api/invitations/accept',{token:inviteToken});
+  assert.equal((await reviewerReq('/api/me/batches')).body.batches.length,0);
+  await ownerReq('/api/platform/batches/'+batch.id,{status:'active'});
+  const available=(await reviewerReq('/api/me/batches')).body.batches;
+  assert.equal(available.length,1);
+  assert.equal(available[0].name,'October validation');
+  assert.equal(available[0].workspaceName,'Evaluation Team');
+  assert.equal(available[0].pendingCards,9);
+  const query=new URLSearchParams({batchId:batch.id,projectId:project.id});
+  const cards=(await reviewerReq('/api/mobile/eval/cards?'+query)).body.cards;
+  const payload={eventId:'mobile-event',cardId:cards[0].cardId,answer:'no',correction:{correctAnswer:'Verified correction'},reviewer:owner.user.id,userId:owner.user.id,workspaceId:'forged',projectId:'forged'};
+  const saved=(await reviewerReq('/api/mobile/eval/results?'+query,payload)).body;
+  assert.equal(saved.result.userId,reviewer.user.id);
+  assert.equal(saved.result.reviewer,reviewer.user.id);
+  assert.equal(saved.result.reviewerName,'Reviewer');
+  assert.equal(saved.result.projectId,project.id);
+  assert.equal(saved.result.workspaceId,workspace.id);
+  assert.equal((await reviewerReq('/api/mobile/eval/results?'+query,payload)).body.duplicate,true);
+  await ownerReq('/api/mobile/eval/results?'+query,{...payload,reviewer:'spoof',answer:'yes'});
+  const ownerDetail=(await ownerReq('/api/platform/batches/'+batch.id)).body.detail;
+  assert.equal(ownerDetail.metrics.totalResultRows,2);
+  const exportRows=(await reviewerReq('/api/eval/results/export?'+query)).body.trim().split('\n').map(JSON.parse);
+  assert.equal(exportRows.length,1);
+  assert.equal(exportRows[0].userId,reviewer.user.id);
+  assert.match((await reviewerReq('/api/eval/results/export?'+query+'&format=csv')).body,/reviewerName/);
+  let expectedResultRows = 2;
+  if (process.platform === 'darwin' && spawnSync('swiftc',['--version'],{stdio:'ignore'}).status === 0) {
+    const nativeBinary=path.join(root,'native-client-smoke');
+    const repoRoot=fileURLToPath(new URL('../',import.meta.url));
+    const run=(command,args,env=process.env)=>new Promise((resolve,reject)=>{
+      const child=spawn(command,args,{cwd:repoRoot,env,stdio:['ignore','pipe','pipe']});
+      let output='';child.stdout.on('data',(part)=>{output+=part;});child.stderr.on('data',(part)=>{output+=part;});
+      const timer=setTimeout(()=>child.kill('SIGTERM'),30000);
+      child.on('error',(error)=>{clearTimeout(timer);reject(error);});
+      child.on('exit',(code)=>{clearTimeout(timer);if(code===0)resolve(output);else reject(new Error(output||'Native client test failed.'));});
+    });
+    await run('swiftc',['ios/ListingEvalApp/Models.swift','ios/ListingEvalApp/APIClient.swift','scripts/platform-client-smoke.swift','-o',nativeBinary]);
+    const output=await run(nativeBinary,[],{...process.env,MEDIEVAL_CLIENT_TEST_URL:baseURL,MEDIEVAL_CLIENT_TEST_TOKEN:owner.token,MEDIEVAL_CLIENT_TEST_USER:owner.user.id,MEDIEVAL_CLIENT_TEST_PROJECT:project.id,MEDIEVAL_CLIENT_TEST_BATCH:batch.id});
+    assert.match(output,/Native account API smoke passed/);
+    expectedResultRows += 1;
+    console.log('Native Swift account API smoke passed.');
+  }
+  await request('/api/mobile/eval/cards?'+query,{token:outsider.token,status:403});
+  await reviewerReq('/api/mobile/eval/cards?batchId='+batch.id+'&projectId=wrong',undefined,403);
+  await reviewerReq('/api/platform/batches/'+batch.id,undefined,403);
+  await reviewerReq('/api/platform/projects',{workspaceId:workspace.id,name:'Forbidden'},403);
+  await reviewerReq('/api/platform/invitations',{workspaceId:workspace.id,email:'attacker@example.com',role:'admin'},403);
+  await reviewerReq('/api/eval/projects',undefined,404);
+  const otherBatch=(await ownerReq('/api/platform/batches',{...input,name:'Workspace batch',audience:'workspace'})).body.batch;
+  await ownerReq('/api/platform/batches/'+otherBatch.id,{status:'active'});
+  assert.equal((await reviewerReq('/api/me/batches')).body.batches.length,1,'batch guests cannot see workspace-wide batches');
+  await ownerReq('/api/platform/batches/'+batch.id,{status:'paused'});
+  assert.equal((await reviewerReq('/api/me/batches')).body.batches.length,0);
+  await reviewerReq('/api/mobile/eval/results?'+query,payload,403);
+  await ownerReq('/api/eval/results/export?'+query);
+  await ownerReq('/api/platform/batches/'+batch.id,{status:'active'});
+  await ownerReq('/api/platform/batches/'+batch.id+'/access',{userId:reviewer.user.id});
+  await reviewerReq('/api/mobile/eval/cards?'+query,undefined,403);
+  await reviewerReq('/api/invitations/accept',{token:inviteToken},403);
+  const groupInvite=(await ownerReq('/api/platform/invitations',{workspaceId:workspace.id,email:reviewer.user.email,role:'reviewer'})).body;
+  await reviewerReq('/api/invitations/accept',{token:groupInvite.inviteUrl.split('/').at(-1)});
+  const groupBatches=(await reviewerReq('/api/me/batches')).body.batches;
+  assert.deepEqual(groupBatches.map((b)=>b.id),[otherBatch.id]);
+  const pending=(await ownerReq('/api/platform/invitations',{workspaceId:workspace.id,batchId:batch.id,email:reviewer.user.email})).body;
+  await pool.query('UPDATE medieval_invitation SET expires_at=now()-interval \'1 second\' WHERE id=$1',[pending.invitation.id]);
+  await reviewerReq('/api/invitations/accept',{token:pending.inviteUrl.split('/').at(-1)},403);
+  await request('/api/platform/workspaces',{cookie:owner.cookie,origin:'https://untrusted.example',body:{name:'CSRF'},status:403});
+  await ownerReq('/api/platform/workspaces/'+workspace.id+'/members/'+owner.user.id,{},403);
+  await ownerReq('/api/platform/workspaces/'+workspace.id+'/members/'+reviewer.user.id,{});
+  assert.equal((await reviewerReq('/api/me/batches')).body.batches.length,0);
+  await reviewerReq('/api/mobile/eval/cards?batchId='+otherBatch.id,undefined,403);
+  await request('/api/auth/sign-out',{token:reviewer.token,body:{}});
+  await reviewerReq('/api/me',undefined,401);
+  await platform.close();
+  platform = await createPlatform({ pool, baseURL, secret, mailer:createMailer({local:true}), dataDir:path.join(root,'labels') });
+  await new Promise((resolve)=>platform.server.listen(port,'127.0.0.1',resolve));
+  assert.equal((await ownerReq('/api/me')).body.user.id,owner.user.id);
+  assert.equal((await ownerReq('/api/platform/batches/'+batch.id)).body.detail.metrics.totalResultRows,expectedResultRows);
+  await reviewerReq('/api/me',undefined,401);
+  console.log('Platform smoke passed: real PostgreSQL, email-code sign-in, invitations, guest isolation, membership, publishing, identity, duplicate handling, exports, CSRF, revocation, sign-out, restart persistence.');
+} finally {
+  if(platform)await platform.close();
+  if(pool)await pool.end();
+  postgres?.stop();
+  await fs.rm(root,{recursive:true,force:true});
+}

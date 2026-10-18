@@ -1,0 +1,35 @@
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: medieval
+      POSTGRES_DB: medieval
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U medieval -d medieval]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  platform:
+    build:
+      context: ../..
+      dockerfile: services/platform/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://medieval:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@database:5432/medieval
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
+      MEDIEVAL_PLATFORM_URL: ${MEDIEVAL_PLATFORM_URL:?Set MEDIEVAL_PLATFORM_URL}
+      SMTP_URL: ${SMTP_URL:?Set SMTP_URL}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM}
+      MEDIEVAL_APP_ID: ${MEDIEVAL_APP_ID:-}
+    ports:
+      - 127.0.0.1:5183:5183
+    volumes:
+      - labels:/app/.runtime/platform
+    depends_on:
+      database:
+        condition: service_healthy
+volumes:
+  database:
+  labels:

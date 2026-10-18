@@ -1,0 +1,30 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+!**/.env.example
+npm-debug.log*
+node_modules/
+.runtime/
+.codex-tmp/
+
+# Xcode
+DerivedData/
+build/
+dist/
+*.xcuserstate
+*.xcscmblueprint
+*.moved-aside
+
+# User-specific Xcode state
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace

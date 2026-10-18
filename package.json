@@ -1,0 +1,39 @@
+{
+  "name": "medieval",
+  "version": "0.1.0",
+  "description": "Open-core human eval review loop with a mobile-first reviewer app and self-hosted dashboard.",
+  "license": "Apache-2.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "medieval-eval": "packages/cli/medieval-eval.mjs"
+  },
+  "scripts": {
+    "eval-api": "node services/eval-api/server.mjs",
+    "platform": "node services/platform/server.mjs",
+    "demo:accounts": "node scripts/platform-demo.mjs",
+    "platform:smoke": "node scripts/platform-smoke.mjs",
+    "eval-api:smoke": "node scripts/eval-api-smoke.mjs",
+    "oss:check": "node --check packages/schema/index.mjs && node --check packages/schema/card-generator.mjs && node --check packages/cli/medieval-eval.mjs && node --check services/eval-api/store.mjs && node --check services/eval-api/dashboard.mjs && node --check services/eval-api/server.mjs && node --check scripts/eval-api-smoke.mjs && npm run eval-api:smoke",
+    "demo": "node scripts/demo-server.mjs",
+    "demo:lan": "HOST=0.0.0.0 node scripts/demo-server.mjs",
+    "demo:smoke": "node scripts/demo-smoke.mjs",
+    "demo:web": "node scripts/web-demo.mjs",
+    "demo:web:smoke": "node scripts/web-demo-smoke.mjs",
+    "live:smoke": "node scripts/live-integration-smoke.mjs",
+    "local:integration": "node scripts/local-integration-smoke.mjs",
+    "bundle": "node scripts/create-release-bundle.mjs",
+    "bundle:verify": "node scripts/verify-release-bundle.mjs",
+    "bundle:smoke": "node scripts/smoke-release-bundle.mjs",
+    "verify:xcode": "node scripts/verify-xcode-project.mjs",
+    "simulator:smoke": "./scripts/xcode-simulator-smoke.sh",
+    "simulator:demo-smoke": "MEDIEVAL_SIMULATOR_USE_LOCAL_DEMO=1 ./scripts/xcode-simulator-smoke.sh",
+    "preflight": "./scripts/preflight.sh"
+  },
+  "dependencies": {
+    "better-auth": "1.7.10",
+    "lucide": "^1.59.0",
+    "nodemailer": "10.1.6",
+    "pg": "8.16.3"
+  }
+}

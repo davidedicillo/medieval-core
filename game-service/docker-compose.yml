@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medieval
+      POSTGRES_USER: medieval
+      POSTGRES_PASSWORD: medieval
+    ports:
+      - "54329:5432"
+    volumes:
+      - medieval-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medieval -d medieval"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgres://medieval:medieval@db:5432/medieval
+      MEDIEVAL_GAME_TOKEN: local-dev-token
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/ready"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  medieval-postgres:
