@@ -11,6 +11,8 @@ import { renderDemoReviewer } from '../eval-api/demo-reviewer.mjs';
 import { EvalFileStore } from '../eval-api/store.mjs';
 import { previewCardsFromText, generateCardsFromRecords } from '../../packages/schema/card-generator.mjs';
 import { resultsToCsv } from '../eval-api/store.mjs';
+import { qualityRequest } from '../eval-api/quality-routes.mjs';
+import { serveDocumentation } from '../documentation/server.mjs';
 
 function send(res, status, value, type = 'application/json; charset=utf-8') {
   res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
@@ -54,18 +56,20 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
     async function batchSummary(batch, userId) {
       const store = storeFor(batch.workspace_id);
       const ctx = { projectId: batch.project_id, batchId: batch.id, reviewer: userId };
-      const [deck, summary] = await Promise.all([store.mobileDeck({ ...ctx, limit: 1 }), store.summary(ctx)]);
+      // Batch discovery must remain available before a reviewer passes qualification.
+      const summary = await store.summary(ctx);
       return {
         id: batch.id, batchId: batch.id, projectId: batch.project_id, workspaceId: batch.workspace_id,
         name: batch.name, description: batch.description, projectName: batch.project_name,
         workspaceName: batch.workspace_name, status: batch.status, audience: batch.audience,
-        role: batch.role, totalCards: summary.summary.totalCards, pendingCards: deck.total,
-        reviewedCards: summary.summary.totalCards - deck.total,
+        role: batch.role, totalCards: summary.summary.totalCards, pendingCards: summary.summary.pendingCards,
+        reviewedCards: summary.summary.reviewedCards,
       };
     }
     const server = http.createServer(async (req, res) => {
       try {
         const url = new URL(req.url, origin);
+        if (await serveDocumentation(req, res, url)) return;
         req.headers['x-medieval-client-ip'] = req.socket.remoteAddress || '127.0.0.1';
         if (url.pathname.startsWith('/api/auth/')) return await nodeAuthHandler(req, res);
         if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, { ok: true, service: 'medieval-platform' });
@@ -78,7 +82,7 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
           if (!appId) return send(res, 404, { error: 'App association is not configured.' });
           return send(res, 200, { applinks: { apps: [], details: [{ appID: appId, paths: ['/invite/*', '/batches/*'] }] } });
         }
-        if (req.method === 'GET' && url.pathname === '/demo/logo.png') {
+        if (req.method === 'GET' && ['/assets/medieval-wordmark.png', '/demo/logo.png'].includes(url.pathname)) {
           return send(res, 200, await fs.readFile(new URL('../../ios/Art/Generated/Logo/medieval-logo-transparent-v1.png', import.meta.url)), 'image/png');
         }
         if (req.method === 'GET' && url.pathname === '/demo/myfire-rating.csv') {
@@ -96,6 +100,7 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
           return send(res, 200, renderPlatformPage({ localMail: mailer.local }), 'text/html; charset=utf-8');
         }
         if (req.method === 'GET' && url.pathname === '/review') return send(res, 200, renderDemoReviewer({ accountMode: true }), 'text/html; charset=utf-8');
+        if (req.method === 'GET' && url.pathname === '/quality') return send(res, 200, (await fs.readFile(new URL('../eval-api/quality.html', import.meta.url), 'utf8')).replace('data-account="false"', 'data-account="true"'), 'text/html; charset=utf-8');
         if (!url.pathname.startsWith('/api/')) return send(res, 404, { error: 'Not found.' });
         const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
         if (!session?.user?.emailVerified) fail(401, 'Sign in to continue.');
@@ -103,6 +108,15 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
         if (!['GET', 'HEAD'].includes(req.method)) {
           if (req.headers.origin && req.headers.origin !== origin) fail(403, 'Invalid request origin.');
           if (!req.headers.authorization && req.headers.origin !== origin) fail(403, 'Browser requests require the platform origin.');
+        }
+        if (url.pathname.startsWith('/api/eval/quality') || url.pathname.startsWith('/api/mobile/eval/quality')) {
+          const manage = url.pathname.startsWith('/api/eval/');
+          const batch = await access.batch(user.id, url.searchParams.get('batchId') || url.searchParams.get('runId'), { manage });
+          if (url.searchParams.has('projectId') && url.searchParams.get('projectId') !== batch.project_id) fail(403, 'Project and batch do not match.');
+          const response = await qualityRequest({ url, method: req.method,
+            body: req.method === 'POST' ? await readBody(req) : {}, store: storeFor(batch.workspace_id),
+            ctx: { projectId: batch.project_id, batchId: batch.id, reviewer: user.id }, actor: user.id, manage });
+          return send(res, 200, response.body, response.type || 'application/json; charset=utf-8');
         }
         if (req.method === 'GET' && url.pathname === '/api/me') {
           return send(res, 200, { ok: true, user: { id: user.id, email: user.email, name: user.name }, workspaces: await access.workspaces(user.id), invitations: await access.pendingInvitations(user.email) });
@@ -190,13 +204,14 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
             const result = await store.storeResult({ ...ctx, payload: {
               cardId: body.cardId, answer: body.answer, correction: body.correction, notes: body.notes,
               durationMs: body.durationMs, clientGeneratedAt: body.clientGeneratedAt,
+              rubricVersion: body.rubricVersion,
               ...ctx, eventId: `${user.id}:${body.eventId}`, userId: user.id, reviewerName: user.name, workspaceId: batch.workspace_id,
             } });
             return send(res, 200, result);
           }
           if (req.method === 'GET' && url.pathname === '/api/eval/results/export') {
             const rows = await store.listResults(ctx);
-            const visible = ['owner','admin'].includes(batch.role) ? rows : rows.filter((row) => row.userId === user.id);
+            const visible = ['owner','admin'].includes(batch.role) ? await store.quality.enrichResults(ctx, rows) : rows.filter((row) => row.userId === user.id);
             const csv = url.searchParams.get('format') === 'csv';
             res.setHeader('content-disposition', `attachment; filename="medieval-${batch.id}-results.${csv ? 'csv' : 'jsonl'}"`);
             return send(res, 200, csv ? resultsToCsv(visible) : visible.map((row) => JSON.stringify(row)).join('\n') + (visible.length ? '\n' : ''), csv ? 'text/csv; charset=utf-8' : 'application/x-ndjson');

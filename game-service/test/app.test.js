@@ -149,9 +149,9 @@ test('game API records idempotent verdicts and returns profile progress', async 
     assert.equal(first.status, 200);
     const firstBody = await first.json();
     assert.equal(firstBody.duplicate, false);
-    assert.equal(firstBody.awarded.xp, 27);
-    assert.equal(firstBody.profile.xp, 27);
-    assert.equal(firstBody.profile.gold, 5);
+    assert.equal(firstBody.awarded.xp, 5);
+    assert.equal(firstBody.profile.xp, 5);
+    assert.equal(firstBody.profile.gold, 1);
 
     const duplicate = await fetch(`${baseUrl}/api/game/verdicts`, {
       method: 'POST',
@@ -164,7 +164,7 @@ test('game API records idempotent verdicts and returns profile progress', async 
     const duplicateBody = await duplicate.json();
     assert.equal(duplicateBody.duplicate, true);
     assert.equal(duplicateBody.awarded.xp, 0);
-    assert.equal(duplicateBody.profile.xp, 27);
+    assert.equal(duplicateBody.profile.xp, 5);
   });
 });
 

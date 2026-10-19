@@ -5,65 +5,65 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Review Cards | MediEval</title>
+  <link rel="icon" type="image/png" href="/demo/logo.png">
   <style>
-    :root { color-scheme: light; font-family: ui-sans-serif, system-ui, sans-serif; color: #202a32; background: #f5f7fa; font-size: 14px; letter-spacing: 0; }
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #203831; background: #f5f7f5; font-size: 14px; letter-spacing: 0; }
     * { box-sizing: border-box; }
     body { margin: 0; }
     button, input, select, textarea { font: inherit; letter-spacing: 0; }
-    button, .button { border: 1px solid #cfd6de; border-radius: 6px; padding: 10px 16px; min-height: 42px; background: white; color: #263648; cursor: pointer; font-weight: 650; text-decoration: none; }
-    button:hover, .button:hover { background: #edf1f4; }
+    button, .button { border: 1px solid #d5dfd9; border-radius: 6px; padding: 10px 16px; min-height: 42px; background: white; color: #203831; cursor: pointer; font-weight: 650; text-decoration: none; }
+    button:hover, .button:hover { background: #ecfaf4; }
     button:disabled { opacity: .5; cursor: wait; }
-    :focus-visible { outline: 3px solid #477ea7; outline-offset: 3px; }
+    :focus-visible { outline: 3px solid #1c604a; outline-offset: 3px; }
     [hidden] { display: none !important; }
-    header { background: white; border-bottom: 1px solid #d8dee8; }
-    .top { max-width: 1100px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 24px; }
-    .brand { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 750; }
-    .brand img { width: 48px; height: 48px; object-fit: contain; }
-    .brand small { color: #657182; font-size: 12px; font-weight: 500; display: block; margin-top: 3px; }
+    header { background: white; border-bottom: 1px solid #d5dfd9; }
+    .top { max-width: 1100px; min-height: 82px; margin: auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 24px; }
+    .brand { display: inline-flex; flex-shrink: 0; align-items: center; }
+    .brand img { display: block; width: 144px; height: auto; aspect-ratio: 1915 / 821; object-fit: contain; }
     main { max-width: 1100px; margin: auto; padding: 28px 24px 48px; }
     h1 { font-size: 26px; margin: 0 0 20px; }
     h2 { font-size: 21px; line-height: 1.4; margin: 12px 0 22px; overflow-wrap: anywhere; }
-    h3 { font-size: 13px; margin: 0 0 10px; color: #657182; }
+    h3 { font-size: 13px; margin: 0 0 10px; color: #5d6c66; }
     p { line-height: 1.6; margin: 0; }
     .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 16px; margin-bottom: 20px; }
-    label { display: grid; gap: 7px; font-size: 12px; font-weight: 650; color: #566373; }
-    input, select, textarea { width: 100%; min-width: 0; border: 1px solid #cfd6de; border-radius: 6px; background: white; color: #202a32; padding: 10px; min-height: 42px; }
+    label { display: grid; gap: 7px; font-size: 12px; font-weight: 650; color: #5d6c66; }
+    input, select, textarea { width: 100%; min-width: 0; border: 1px solid #d5dfd9; border-radius: 6px; background: white; color: #203831; padding: 10px; min-height: 42px; }
     textarea { resize: vertical; min-height: 80px; }
-    .progress-row { display: flex; justify-content: space-between; gap: 16px; color: #657182; margin-bottom: 10px; }
-    progress { display: block; width: 100%; height: 8px; accent-color: #24775b; margin-bottom: 24px; }
-    .workspace { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); background: white; border: 1px solid #d8dee8; border-radius: 8px; overflow: hidden; }
-    .claim { padding: 28px; border-right: 1px solid #d8dee8; }
-    .evidence { padding: 28px; background: #fbfcfe; }
-    .meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #657182; }
+    .progress-row { display: flex; justify-content: space-between; gap: 16px; color: #5d6c66; margin-bottom: 10px; }
+    progress { display: block; width: 100%; height: 8px; accent-color: #1c604a; margin-bottom: 24px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); background: white; border: 1px solid #d5dfd9; border-radius: 8px; overflow: hidden; }
+    .claim { padding: 28px; border-right: 1px solid #d5dfd9; }
+    .evidence { padding: 28px; background: #f5f7f5; }
+    .meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #5d6c66; }
     .value { font-size: 17px; font-weight: 650; line-height: 1.6; overflow-wrap: anywhere; }
-    .rule { border-top: 1px solid #e3e7ed; margin-top: 24px; padding-top: 24px; }
+    .rule { border-top: 1px solid #d5dfd9; margin-top: 24px; padding-top: 24px; }
     .source-title { font-weight: 700; font-size: 16px; margin-bottom: 8px; overflow-wrap: anywhere; }
-    .source-meta { font-size: 12px; color: #657182; margin-bottom: 22px; }
+    .source-meta { font-size: 12px; color: #5d6c66; margin-bottom: 22px; }
     .evidence ul { padding-left: 20px; line-height: 1.6; }
     .evidence li { margin-bottom: 12px; overflow-wrap: anywhere; }
     .media { max-width: 100%; max-height: 300px; object-fit: contain; display: block; margin-bottom: 18px; }
     .fields { display: grid; gap: 16px; margin-top: 24px; }
     .verdicts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 24px; }
-    .yes { background: #24775b; color: white; border-color: #24775b; }
+    .yes { background: #1c604a; color: white; border-color: #1c604a; }
     .yes:hover { background: #1a6048; }
-    .no { color: #b43b43; border-color: #e5b9bc; }
+    .no { color: #a44335; border-color: #d8b6b0; }
     .minor { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; }
-    .minor button { border: 0; font-size: 12px; color: #657182; background: transparent; padding: 8px 0; }
-    #status { min-height: 36px; padding-top: 12px; color: #24775b; line-height: 1.5; }
-    #status.error { color: #b43b43; }
-    .complete { padding: 40px 0; border-top: 1px solid #d8dee8; }
+    .minor button { border: 0; font-size: 12px; color: #5d6c66; background: transparent; padding: 8px 0; }
+    #status { min-height: 36px; padding-top: 12px; color: #1c604a; line-height: 1.5; }
+    #status.error { color: #a44335; }
+    .complete { padding: 40px 0; border-top: 1px solid #d5dfd9; }
     .complete h2 { margin-top: 0; }
     .complete a { display: inline-block; margin-top: 20px; }
     footer { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 24px; font-size: 12px; }
-    a { color: #315f8c; }
-    details { margin-top: 24px; font-size: 12px; color: #657182; }
+    a { color: #1c604a; }
+    details { margin-top: 24px; font-size: 12px; color: #5d6c66; }
     summary { cursor: pointer; }
     pre { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
-    @media (max-width: 700px) { .top { padding: 12px 16px; } main { padding: 24px 16px; } .toolbar, .workspace { grid-template-columns: 1fr; } .claim { display: contents; } .claim-intro, .evidence, .review-actions { padding: 20px; } .claim-intro, .evidence { border-bottom: 1px solid #d8dee8; } .evidence { order: 1; } .review-actions { order: 2; } .review-actions .fields { margin-top: 0; } .brand small { display: none; } }
+    @media (max-width: 700px) { .top { min-height: 75px; padding: 10px 16px; } .brand img { width: 128px; } main { padding: 24px 16px; } .toolbar, .workspace { grid-template-columns: 1fr; } .claim { display: contents; } .claim-intro, .evidence, .review-actions { padding: 20px; } .claim-intro, .evidence { border-bottom: 1px solid #d5dfd9; } .evidence { order: 1; } .review-actions { order: 2; } .review-actions .fields { margin-top: 0; } }
   </style>
 </head>
 <body>
-  <header><div class="top"><div class="brand"><img src="/demo/logo.png" alt=""><div>MediEval<small>${accountMode ? 'Your reviews' : 'Local demo'}</small></div></div><a id="dashboard" class="button" href="/">${accountMode ? 'My Batches' : 'Dashboard'}</a></div></header>
+  <header><div class="top"><a class="brand" href="/" aria-label="MediEval home"><img src="/demo/logo.png" alt="MediEval" width="1915" height="821"></a><a id="dashboard" class="button" href="/">${accountMode ? 'My Batches' : 'Dashboard'}</a></div></header>
   <main>
     <h1>Review Cards</h1>
     <div class="toolbar"><label>Batch<select id="batch"></select></label><label>Reviewer<input id="reviewer" value="Davide" autocomplete="off"></label></div>
@@ -92,7 +92,7 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
     <section id="complete" class="complete" hidden><h2>Batch complete</h2><p>All cards have a saved verdict for this reviewer.</p><a class="button" id="results" href="/">View Results</a></section>
     <div id="status" role="status" aria-live="polite"></div>
     <button id="retry" hidden>Retry</button>
-    <footer><a href="/demo/myfire-rating.csv">Sample CSV</a><a href="/demo/cards.jsonl">Sample JSONL</a></footer>
+    <footer><a id="qualityLink" href="/quality">Quality & Training</a><a href="/docs/REVIEWING">Review guide</a><a href="/demo/myfire-rating.csv">Sample CSV</a><a href="/demo/cards.jsonl">Sample JSONL</a></footer>
   </main>
   <script>
     const el = (id) => document.getElementById(id);
@@ -135,6 +135,7 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
       el('complete').hidden = true;
       try {
         const query = new URLSearchParams(context());
+        el('qualityLink').href = '/quality?' + query;
         saveContext();
         const [deck, summary] = await Promise.all([
           api('/api/mobile/eval/cards?' + query + '&limit=1'),
@@ -142,7 +143,7 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
         ]);
         if (generation !== state.generation) return;
         const total = summary.summary.totalCards;
-        const reviewed = total - deck.total;
+        const reviewed = summary.summary.reviewedCards;
         el('progress').max = Math.max(1, total);
         el('progress').value = reviewed;
         el('progressText').textContent = reviewed + ' of ' + total + ' reviewed';
@@ -153,12 +154,13 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
         const card = state.card;
         state.startedAt = Date.now();
         state.eventId = crypto.randomUUID();
-        el('question').textContent = card.question;
+        el('question').textContent = (card.quality ? '[' + card.quality.kind + '] ' : '') + card.question;
         el('value').textContent = card.claim.value;
         el('priority').textContent = card.priority + ' priority';
         el('confidence').textContent = card.confidence == null ? 'Confidence unavailable' : Math.round(card.confidence * 100) + '% confidence';
         el('subject').textContent = card.subject?.title || card.sourceKey;
         el('sourceMeta').textContent = [card.subject?.subtitle, card.subject?.source].filter(Boolean).join(' / ');
+        if (card.reviewRubric?.text) el('sourceMeta').textContent += ' · Rubric ' + card.reviewRubric.version + ': ' + card.reviewRubric.text;
         el('evidence').replaceChildren();
         for (const evidence of card.evidence || []) {
           const item = document.createElement('li');
@@ -187,17 +189,22 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
       setBusy(true);
       status('Saving verdict...');
       const correction = el('correction').value.trim();
+      let qualityFeedback = '';
       try {
-        await api('/api/mobile/eval/results?' + new URLSearchParams(context()), {
+        const result = await api('/api/mobile/eval/results?' + new URLSearchParams(context()), {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ...context(), eventId: state.eventId, cardId: state.card.cardId, answer, correction: correction ? { correctAnswer: correction } : null, notes: el('notes').value.trim(), durationMs: Date.now() - state.startedAt, clientGeneratedAt: new Date().toISOString() }),
+          body: JSON.stringify({ ...context(), eventId: state.eventId, cardId: state.card.cardId, answer, correction: correction ? { correctAnswer: correction } : null, notes: el('notes').value.trim(), durationMs: Date.now() - state.startedAt, clientGeneratedAt: new Date().toISOString(), rubricVersion: state.card.reviewRubric?.version || state.card.quality?.rubricVersion }),
         });
+        if (result.qualityFeedback) {
+          const f = result.qualityFeedback;
+          qualityFeedback = f.kind === 'consistency' ? (f.consistent ? 'Matches your previous judgment.' : 'Your judgment changed. Consistency measures repeatability, not correctness.') : (f.matchesReference === null ? 'Answer recorded.' : (f.matchesReference ? 'Matches the reference. ' : 'Differs from the reference. ') + (f.explanation || ''));
+        }
       } catch (error) {
         status(error.message, true);
         setBusy(false);
         return;
       }
-      try { await loadCard(); status('Verdict saved.'); } catch (error) { status('Verdict saved. Could not load the next card: ' + error.message, true); }
+      try { await loadCard(); status(qualityFeedback || 'Verdict saved.'); } catch (error) { status('Verdict saved. Could not load the next card: ' + error.message, true); }
     }
     document.querySelectorAll('[data-answer]').forEach((button) => button.addEventListener('click', () => submit(button.dataset.answer)));
     for (const id of ['batch', 'reviewer']) el(id).addEventListener('change', () => { status(''); loadCard().catch((error) => status(error.message, true)); });

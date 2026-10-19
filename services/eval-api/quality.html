@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quality & Training Grounds · MediEval</title>
+<style>
+  :root{font-family:system-ui,sans-serif;color:#253043;background:#f5f6f8}body{max-width:1120px;margin:auto;padding:24px}h1{font-size:28px}h2{font-size:20px}section{background:white;border:1px solid #d8dfe7;border-radius:10px;padding:20px;margin:18px 0}label{display:flex;flex-direction:column;gap:5px;margin:10px 0}input,select,textarea,button{font:inherit;padding:9px;border:1px solid #bdc8d5;border-radius:5px}textarea{min-height:80px}button{cursor:pointer;background:#264c76;color:white}button:disabled{opacity:.5;cursor:wait}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.actions{display:flex;gap:10px;flex-wrap:wrap}p{line-height:1.5}.muted{color:#5e6c7b}table{width:100%;border-collapse:collapse}td,th{text-align:left;border-bottom:1px solid #d8dfe7;padding:10px;vertical-align:top}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:380px;overflow:auto}#status{position:sticky;bottom:0;padding:10px;background:#eef3f9}a{color:#264c76}[hidden]{display:none!important}.scroll{overflow:auto}input[type=checkbox]{width:auto}details{max-width:650px}
+</style></head><body data-account="false">
+<a href="/">← Dashboard</a> · <a href="/docs/QUALITY">Quality guide</a><h1>Quality & Training Grounds</h1>
+<p class="muted">Start with direct expert review. Enable training, shared review, or consistency checks when they help your project. Reference matching and agreement describe different evidence; neither is a guarantee of correctness.</p>
+<section id="connection"><div class="grid"><label>Project<input id="projectId"></label><label>Batch<input id="batchId"></label><label>Reviewer<input id="reviewer"></label><label>Token<input id="token" type="password"></label></div><button id="connect">Load batch</button></section>
+<section><h2>Your quality record</h2><p id="summary">Load a batch to begin.</p><p id="rubricDisplay"></p><p id="monitoring"></p><details><summary>Recent feedback</summary><pre id="feedbackHistory"></pre></details></section>
+<section><h2>Training Grounds</h2><label>Quest type<select id="kind"><option value="practice">Practice with explanations</option><option value="qualification">Qualification</option><option value="check">Reference check</option><option value="consistency">Consistency review</option></select></label><button id="start">Next quest</button><p id="questStatus"></p><article id="quest" hidden><h3 id="question"></h3><pre id="context"></pre><div id="questMedia"></div><label>Notes<textarea id="notes"></textarea></label><div id="answers" class="actions"></div></article><p id="feedback" aria-live="polite"></p></section>
+<section id="management" hidden><h2>Batch quality settings</h2><form id="settingsForm"><div class="grid">
+<label>Review mode<select id="mode"><option value="solo">Solo expert</option><option value="team">Independent team review</option></select></label>
+<label>Calibration<select id="calibration"><option value="off">Off</option><option value="optional">Optional</option><option value="required">Required for other reviewers</option></select></label>
+<label>Rubric version<input id="rubricVersion" required></label><label>Minimum independent reviews<input id="minReviews" type="number" min="2" max="20"></label>
+<label>Agreement threshold (0.5–1)<input id="consensusThreshold" type="number" min="0.51" max="1" step="0.01"></label>
+<label>Qualification questions<input id="qualificationCount" type="number" min="1" max="500"></label><label>Qualification pass rate (0.5–1)<input id="passRate" type="number" min="0.51" max="1" step="0.01"></label>
+<label>Reference check every N reviews (0 disables)<input id="checkEvery" type="number" min="0" max="1000"></label><label>Consistency check every N reviews (0 disables)<input id="consistencyEvery" type="number" min="0" max="1000"></label></div>
+<label>Rubric<textarea id="rubric"></textarea></label><label>Expert reviewer identities, comma separated<input id="expertReviewers"></label><button type="button" id="makeExpert">Add me as project expert</button><p class="muted">For account batches, identities are user IDs. Your identity: <span id="identity"></span>. Declared experts can review directly when qualification is required for others.</p><button>Save settings</button></form>
+<h2>Reference examples</h2><p>Choose an existing card to reserve its source for reference quests. Use separate sources for practice and scored questions. Scored questions are hidden from their author. Add qualification examples before enabling a required gate.</p>
+<form id="referenceForm"><label>Card<select id="referenceCard"></select></label><div class="grid"><label>Purpose<select id="referenceKind"><option value="practice">Practice</option><option value="qualification">Qualification</option><option value="check">Ongoing check</option></select></label><label>Reference answer<select id="referenceAnswer"><option value="yes">Yes</option><option value="no">No</option><option value="unsure">Insufficient evidence</option><option value="bad_question">Bad question</option></select></label></div><label>Expert explanation<textarea id="explanation" required></textarea></label><button>Add reference</button></form><div id="references"></div>
+<h2>Reviewer qualification</h2><pre id="reviewerQuality"></pre>
+<h2>Labels & Round Table adjudication</h2><p>Agreement counts independent reviewers. “Expert reviewed” records the configured expert's judgment. Adjudication preserves prior judgments and records whether the adjudicator also reviewed the card.</p><div class="actions"><button data-export="jsonl">Export resolved labels JSONL</button><button data-export="csv">Export resolved labels CSV</button></div><div class="scroll"><table><thead><tr><th>Question</th><th>Status</th><th>Evidence</th><th>Resolution</th></tr></thead><tbody id="labels"></tbody></table></div></section>
+<p id="status" role="status" aria-live="polite"></p>
+<script>
+const el=id=>document.getElementById(id), account=document.body.dataset.account==='true', params=new URLSearchParams(location.search);
+let snapshot=null, current=null, busy=false, activeContext=null;
+const answerNames={yes:'Aye · Yes',no:'Nay · No',unsure:'Hmm · Insufficient evidence',bad_question:'Bad question',skip:'Skip'};
+for(const id of ['projectId','batchId','reviewer'])el(id).value=params.get(id)||localStorage.getItem('medieval:'+id)||(id==='reviewer'?'MediEval Reviewer':'default');
+el('token').value=localStorage.getItem('medieval:token')||'';
+if(account){for(const id of ['projectId','reviewer','token'])el(id).parentElement.hidden=true;}
+function inputContext(){return account?{batchId:el('batchId').value}:{projectId:el('projectId').value,batchId:el('batchId').value,reviewer:el('reviewer').value};}
+function query(){return new URLSearchParams(activeContext||inputContext());}
+async function api(route,body){
+ const headers={'content-type':'application/json'};
+ if(!account&&el('token').value)headers.authorization='Bearer '+el('token').value;
+ if(body&&route==='/api/mobile/eval/results')body.reviewer=(activeContext||inputContext()).reviewer;
+ const response=await fetch(route+'?'+query(),{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});
+ const data=await response.json();
+ if(!response.ok||data.ok===false){const error=new Error(data.error||'Request failed');error.status=response.status;throw error;}
+ return data;
+}
+async function action(fn){if(busy)return;busy=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);el('status').textContent='';try{await fn();}catch(e){el('status').textContent=e.message;}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);}}
+async function load(){activeContext||=inputContext();try{snapshot=await api('/api/eval/quality');}catch(e){if(e.status!==403)throw e;snapshot=await api('/api/mobile/eval/quality');}render();}
+function render(){const s=snapshot.settings,q=snapshot.qualification;
+ el('summary').textContent='Mode: '+s.mode+' · Calibration: '+s.calibration+' · '+(snapshot.qualificationRequired?'Qualification required':'Direct review available')+(snapshot.isProjectExpert?' · Project expert':'')+(q.available||q.attempted?' · Qualification: '+q.status+' ('+q.attempted+'/'+q.required+')':'')+(q.accuracy===null?'':' · '+Math.round(q.accuracy*100)+'% reference agreement');
+ el('rubricDisplay').textContent='Rubric '+s.rubricVersion+': '+(s.rubric||'No written rubric yet.');
+ el('monitoring').textContent='Reference checks: '+snapshot.checks.matched+'/'+snapshot.checks.count+' matched. Consistency: '+snapshot.consistency.matched+'/'+snapshot.consistency.count+' repeated judgments matched. Quality XP: '+snapshot.qualityXP+'. Consistency measures repeatability, not independent correctness.';
+ el('feedbackHistory').textContent=snapshot.feedback.map(f=>f.kind+' · '+f.cardId+' · Your answer: '+f.answer+'\n'+(f.kind==='consistency'?(f.consistent?'Matches your earlier judgment.':'Your judgment changed.'):(f.matchesReference===null?'Feedback available after qualification is complete.':(f.matchesReference?'Matches the reference. ':'Differs from the reference. ')+(f.explanation||'')))).join('\n\n')||'No quality quests completed yet.';el('management').hidden=!snapshot.canManage;
+ if(!snapshot.canManage)return;
+ for(const key of ['mode','calibration','rubricVersion','rubric','minReviews','consensusThreshold','qualificationCount','passRate','checkEvery','consistencyEvery'])el(key).value=s[key];
+ el('expertReviewers').value=s.expertReviewers.join(', ');el('identity').textContent=snapshot.reviewer;
+ el('reviewerQuality').textContent=snapshot.reviewerQuality.map(r=>r.reviewer+' · '+r.qualification.status.replaceAll('_',' ')+' · '+r.qualification.attempted+'/'+r.qualification.required+(r.qualification.accuracy===null?'':' · '+Math.round(r.qualification.accuracy*100)+'% reference agreement')).join('\n')||'No qualification attempts yet.';
+ const select=el('referenceCard');select.replaceChildren();for(const row of snapshot.cards){const option=document.createElement('option');option.value=row.cardId;option.textContent=row.question+' · '+row.cardId;select.append(option);}
+ el('references').replaceChildren();for(const ref of snapshot.references.filter(r=>!r.retired)){const row=document.createElement('p');row.textContent=ref.kind+' · rubric '+ref.rubricVersion+' · '+ref.card.question+' → '+ref.answer+' · '+ref.explanation+' ';const b=document.createElement('button');b.textContent='Retire';b.onclick=()=>action(async()=>{await api('/api/eval/quality/references/retire',{id:ref.id});await load();});row.append(b);el('references').append(row);}
+ el('labels').replaceChildren();for(const label of snapshot.labels){const tr=document.createElement('tr');for(const value of [label.question,label.status+(label.resolvedAnswer?' · '+label.resolvedAnswer:'')]){const td=document.createElement('td');td.textContent=value;tr.append(td);}const evidence=document.createElement('td'),details=document.createElement('details'),title=document.createElement('summary'),pre=document.createElement('pre');title.textContent=label.reviewerCount+' reviewers · '+JSON.stringify(label.votes);pre.textContent=JSON.stringify({card:label.card,judgments:label.judgments,adjudication:label.adjudication},null,2);details.append(title,pre);evidence.append(details);tr.append(evidence);
+ const resolution=document.createElement('td');if(label.basisEventIds.length){const form=document.createElement('form'),answer=document.createElement('select'),reason=document.createElement('textarea'),correction=document.createElement('input'),button=document.createElement('button');for(const value of ['yes','no','unsure','bad_question']){const option=document.createElement('option');option.value=value;option.textContent=answerNames[value];answer.append(option);}reason.placeholder='Resolution rationale';reason.required=true;reason.setAttribute('aria-label','Resolution rationale');answer.setAttribute('aria-label','Resolved answer');correction.placeholder='Corrected value (optional)';correction.setAttribute('aria-label','Corrected value');button.textContent='Adjudicate';form.append(answer,reason,correction,button);form.onsubmit=e=>{e.preventDefault();action(async()=>{await api('/api/eval/quality/adjudications',{cardId:label.cardId,answer:answer.value,rationale:reason.value,correction:correction.value?{correctAnswer:correction.value,reasonTags:[]}:null,basisEventIds:label.basisEventIds});await load();});};resolution.append(form);}tr.append(resolution);el('labels').append(tr);}}
+// Keep all query parameters in one place so account-scoped batch IDs remain attached.
+async function quest(){
+ const headers={};if(!account&&el('token').value)headers.authorization='Bearer '+el('token').value;
+ const q=query();q.set('kind',el('kind').value);
+ const response=await fetch('/api/mobile/eval/quality/cards?'+q,{headers}),data=await response.json();
+ if(!response.ok)throw new Error(data.error||'Could not load quest.');
+ current=data.cards[0]||null;el('quest').hidden=!current;
+ el('questStatus').textContent=current?'Rubric '+current.quality.rubricVersion:'No unseen quests are available for this type. Ask the batch owner to add references, or complete regular reviews before a consistency check.';
+ el('feedback').textContent='';
+ if(current){
+  el('question').textContent=current.question;
+  el('context').textContent=[current.subject?.title,'Claim: '+current.claim.value,...(current.evidence||[]).map(e=>e.detail),current.analysisContext?.summary].filter(Boolean).join('\n\n');
+  el('notes').value='';el('questMedia').replaceChildren();
+  for(const media of current.media?.length?current.media:current.images||[]){
+   let url;try{url=new URL(media.url);}catch{continue;}if(!['http:','https:'].includes(url.protocol))continue;
+   const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent=media.label||'Open source media';
+   if(!media.type||media.type.startsWith('image')){const image=document.createElement('img');image.src=url.href;image.alt=media.label||'Source evidence';image.loading='lazy';image.style.maxWidth='100%';image.style.maxHeight='400px';link.replaceChildren(image);}
+   el('questMedia').append(link);
+  }
+ }
+}
+for(const [answer,name]of Object.entries(answerNames)){const b=document.createElement('button');b.textContent=name;b.onclick=()=>action(async()=>{if(!current)return;const data=await api('/api/mobile/eval/results',{eventId:crypto.randomUUID(),cardId:current.cardId,reviewer:el('reviewer').value,answer,notes:el('notes').value,clientGeneratedAt:new Date().toISOString()});const f=data.qualityFeedback;el('feedback').textContent=f.kind==='consistency'?(f.consistent?'Matches your previous judgment.':'Your judgment changed. Review whether the evidence or rubric explains the difference.'):(f.matchesReference===null?'Answer recorded. Qualification feedback appears after the full set.':(f.matchesReference?'Matches the expert reference. ':'Differs from the expert reference. ')+(f.explanation||''));current=null;el('quest').hidden=true;await load();});el('answers').append(b);}
+el('connect').onclick=()=>action(async()=>{current=null;snapshot=null;activeContext=inputContext();el('management').hidden=true;el('quest').hidden=true;await load();});el('start').onclick=()=>action(quest);
+el('kind').onchange=()=>{current=null;el('quest').hidden=true;el('feedback').textContent='';el('questStatus').textContent='Choose Next quest to begin.';};
+el('makeExpert').onclick=()=>{const ids=el('expertReviewers').value.split(',').map(s=>s.trim()).filter(Boolean);el('expertReviewers').value=[...new Set([...ids,snapshot.reviewer])].join(', ');};
+el('settingsForm').onsubmit=e=>{e.preventDefault();action(async()=>{const body={};for(const key of ['mode','calibration','rubricVersion','rubric'])body[key]=el(key).value;for(const key of ['minReviews','consensusThreshold','qualificationCount','passRate','checkEvery','consistencyEvery'])body[key]=Number(el(key).value);body.expertReviewers=el('expertReviewers').value.split(',').map(s=>s.trim()).filter(Boolean);await api('/api/eval/quality/settings',body);await load();el('status').textContent='Quality settings saved.';});};
+el('referenceForm').onsubmit=e=>{e.preventDefault();action(async()=>{await api('/api/eval/quality/references',{cardId:el('referenceCard').value,kind:el('referenceKind').value,answer:el('referenceAnswer').value,explanation:el('explanation').value});el('explanation').value='';await load();});};
+document.querySelectorAll('[data-export]').forEach(b=>b.onclick=()=>action(async()=>{const q=query();q.set('format',b.dataset.export);const headers={};if(!account&&el('token').value)headers.authorization='Bearer '+el('token').value;const response=await fetch('/api/eval/quality/export?'+q,{headers});if(!response.ok)throw new Error('Export failed.');const link=document.createElement('a');link.href=URL.createObjectURL(await response.blob());link.download='medieval-resolved-labels.'+b.dataset.export;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}));
+action(load);
+</script></body></html>

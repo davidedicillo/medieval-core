@@ -18,6 +18,8 @@ MediEval's open-source core is the trusted eval loop:
 - projects, batches, batch creation, card preview, and result inspection
 - CSV/JSON/JSONL card generator plus starter adapters such as MyFireRating
 - JSONL label persistence and export
+- optional calibration, expert reference sets, independent review counts,
+  consensus, adjudication, consistency checks, and portable quality provenance
 - account sign-in, workspace membership, basic permissions, direct batch assignments and invitations,
   and account-scoped batch discovery
 - examples, CLI helpers, and smoke tests
@@ -26,7 +28,7 @@ The future paid layer is operational leverage around that core:
 
 - hosted dashboard and managed storage
 - advanced organization administration, teams, and fine-grained project policies
-- automated reviewer distribution, calibration, consensus, and quality metrics
+- advanced reviewer routing, managed calibration programs, and organization-wide quality analytics
 - audit logs, SSO/SCIM, retention controls, and support
 - managed reviewer bench or marketplace
 

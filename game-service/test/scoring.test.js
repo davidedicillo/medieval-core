@@ -10,7 +10,7 @@ import {
   validateVerdictEvent,
 } from '../src/scoring.js';
 
-test('scoreVerdict rewards difficult corrected low-confidence verdicts', () => {
+test('a correction receives participation rewards without a correctness bonus', () => {
   const score = scoreVerdict({
     answer: 'no',
     correction: { correctAnswer: 'Charging cable', reasonTags: ['wrong_item'] },
@@ -20,24 +20,24 @@ test('scoreVerdict rewards difficult corrected low-confidence verdicts', () => {
 
   assert.deepEqual(score, {
     answer: 'no',
-    xp: 27,
-    gold: 5,
+    xp: 5,
+    gold: 1,
     correction: true,
   });
 });
 
 test('scoreVerdict matches the iOS local reward fixtures', () => {
   const fixtures = [
-    { event: { answer: 'yes', priority: 'high', confidence: 0.2 }, expected: { answer: 'yes', xp: 19, gold: 3, correction: false } },
-    { event: { answer: 'yes', priority: 'medium', confidence: 0.5 }, expected: { answer: 'yes', xp: 14, gold: 3, correction: false } },
-    { event: { answer: 'yes', priority: 'low', confidence: 0.65 }, expected: { answer: 'yes', xp: 10, gold: 3, correction: false } },
-    { event: { answer: 'no', correction: { correctAnswer: 'Charging cable', reasonTags: ['wrong_item'] }, priority: 'high', confidence: 0.2 }, expected: { answer: 'no', xp: 27, gold: 5, correction: true } },
-    { event: { answer: 'no', correction: { correctAnswer: '  ', reasonTags: ['wrong_item'] }, priority: 'medium' }, expected: { answer: 'no', xp: 20, gold: 5, correction: true } },
-    { event: { answer: 'no', correction: { correctAnswer: '  ', reasonTags: ['  '] }, priority: 'low', confidence: 0.9 }, expected: { answer: 'no', xp: 10, gold: 3, correction: false } },
-    { event: { answer: 'unsure', confidence: 0.34 }, expected: { answer: 'unsure', xp: 11, gold: 1, correction: false } },
-    { event: { answer: 'bad_question', priority: 'medium', confidence: 0.5 }, expected: { answer: 'bad_question', xp: 12, gold: 1, correction: false } },
-    { event: { answer: 'skip' }, expected: { answer: 'skip', xp: 2, gold: 0, correction: false } },
-    { event: { answer: 'skip', priority: 'high', confidence: 0.2 }, expected: { answer: 'skip', xp: 11, gold: 0, correction: false } },
+    { event: { answer: 'yes', priority: 'high', confidence: 0.2 }, expected: { answer: 'yes', xp: 5, gold: 1, correction: false } },
+    { event: { answer: 'yes', priority: 'medium', confidence: 0.5 }, expected: { answer: 'yes', xp: 5, gold: 1, correction: false } },
+    { event: { answer: 'yes', priority: 'low', confidence: 0.65 }, expected: { answer: 'yes', xp: 5, gold: 1, correction: false } },
+    { event: { answer: 'no', correction: { correctAnswer: 'Charging cable', reasonTags: ['wrong_item'] }, priority: 'high', confidence: 0.2 }, expected: { answer: 'no', xp: 5, gold: 1, correction: true } },
+    { event: { answer: 'no', correction: { correctAnswer: '  ', reasonTags: ['wrong_item'] }, priority: 'medium' }, expected: { answer: 'no', xp: 5, gold: 1, correction: true } },
+    { event: { answer: 'no', correction: { correctAnswer: '  ', reasonTags: ['  '] }, priority: 'low', confidence: 0.9 }, expected: { answer: 'no', xp: 5, gold: 1, correction: false } },
+    { event: { answer: 'unsure', confidence: 0.34 }, expected: { answer: 'unsure', xp: 5, gold: 1, correction: false } },
+    { event: { answer: 'bad_question', priority: 'medium', confidence: 0.5 }, expected: { answer: 'bad_question', xp: 5, gold: 1, correction: false } },
+    { event: { answer: 'skip' }, expected: { answer: 'skip', xp: 0, gold: 0, correction: false } },
+    { event: { answer: 'skip', priority: 'high', confidence: 0.2 }, expected: { answer: 'skip', xp: 0, gold: 0, correction: false } },
   ];
 
   for (const fixture of fixtures) {
@@ -45,7 +45,7 @@ test('scoreVerdict matches the iOS local reward fixtures', () => {
   }
 });
 
-test('scoreVerdict uses card fallback priority and confidence', () => {
+test('model priority and confidence do not increase participation rewards', () => {
   const score = scoreVerdict({
     answer: 'yes',
     card: {
@@ -56,8 +56,8 @@ test('scoreVerdict uses card fallback priority and confidence', () => {
 
   assert.deepEqual(score, {
     answer: 'yes',
-    xp: 19,
-    gold: 3,
+    xp: 5,
+    gold: 1,
     correction: false,
   });
 });
@@ -110,6 +110,6 @@ test('dailyQuests calculates progress caps', () => {
   assert.deepEqual(quests.map((quest) => [quest.key, quest.progress, quest.complete]), [
     ['torch_lit', 10, true],
     ['dungeon_of_doubt', 5, true],
-    ['scribe_truth', 1, false],
+    ['careful_review', 5, true],
   ]);
 });

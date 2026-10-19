@@ -5,6 +5,10 @@ service, or deciding whether the current build is ready to use for real evals.
 
 ## 0. Preflight
 
+For product documentation, links, agent contracts, examples, and the public
+documentation routes, run `npm run docs:check`. Account-server route checks
+also run in `npm run platform:smoke`, which requires PostgreSQL.
+
 From the repo root:
 
 ```bash

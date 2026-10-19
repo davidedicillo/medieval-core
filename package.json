@@ -14,6 +14,8 @@
     "demo:accounts": "node scripts/platform-demo.mjs",
     "platform:smoke": "node scripts/platform-smoke.mjs",
     "eval-api:smoke": "node scripts/eval-api-smoke.mjs",
+    "quality:smoke": "node scripts/quality-smoke.mjs",
+    "docs:check": "node scripts/docs-check.mjs",
     "oss:check": "node --check packages/schema/index.mjs && node --check packages/schema/card-generator.mjs && node --check packages/cli/medieval-eval.mjs && node --check services/eval-api/store.mjs && node --check services/eval-api/dashboard.mjs && node --check services/eval-api/server.mjs && node --check scripts/eval-api-smoke.mjs && npm run eval-api:smoke",
     "demo": "node scripts/demo-server.mjs",
     "demo:lan": "HOST=0.0.0.0 node scripts/demo-server.mjs",

@@ -102,11 +102,14 @@ async function bundleIOSApp() {
   for (const directory of ['docs', 'examples', 'packages', 'services']) {
     await copyClean(path.join(repoDir, directory), path.join(stageDir, directory));
   }
-  for (const name of ['package.json', 'package-lock.json', 'LICENSE', 'NOTICE', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', 'ROADMAP.md']) {
+  for (const name of ['package.json', 'package-lock.json', 'README.md', 'llms.txt', 'LICENSE', 'NOTICE', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', 'ROADMAP.md']) {
     await copyFilePreservingMode(path.join(repoDir, name), path.join(stageDir, name));
   }
   const logo = 'Art/Generated/Logo/medieval-logo-transparent-v1.png';
   await copyFilePreservingMode(path.join(iosDir, logo), path.join(stageDir, 'ios', logo));
+  await copyFilePreservingMode(path.join(iosDir, 'README.md'), path.join(stageDir, 'ios', 'README.md'));
+  await copyFilePreservingMode(path.join(repoDir, 'game-service', 'README.md'), path.join(stageDir, 'game-service', 'README.md'));
+  await copyClean(path.join(repoDir, 'game-service', 'docs'), path.join(stageDir, 'game-service', 'docs'));
   await copyFilePreservingMode(path.join(repoDir, 'docs', 'maintainers', 'HANDOFF.md'), path.join(stageDir, 'HANDOFF.md'));
   await copyFilePreservingMode(path.join(repoDir, 'docs', 'maintainers', 'VERIFY.md'), path.join(stageDir, 'VERIFY.md'));
   await copyClean(path.join(repoDir, '.github'), path.join(stageDir, '.github'));

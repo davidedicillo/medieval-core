@@ -10,8 +10,14 @@ multi-label tasks, or span annotation. Rewards are optional, not quality scores.
 
 [Try the browser sample](https://medieval.dev/#demo) without an account.
 The native iOS app must currently be built from source; there is no App Store or
-TestFlight release. Hosted email sign-in is not ready. The self-hosted core is
-usable independently of the managed service.
+TestFlight release. The hosted account platform is at
+[app.medieval.dev](https://app.medieval.dev); access uses email-code sign-in.
+The self-hosted core is usable independently of the managed service.
+
+Start with the [product documentation](docs/README.md) for first-use, reviewer,
+administrator, quality, export, and operations guides. Agents can begin with
+[llms.txt](llms.txt) and the [structured manifest](docs/agent/manifest.json).
+Both servers expose the searchable documentation at `/docs`.
 
 ## Try It Locally
 
@@ -82,6 +88,8 @@ domain-specific adapter example, not a requirement or a validated risk model.
 
 The Apache-2.0 core includes the iOS app, web review, dashboard/API, accounts,
 workspaces, permissions, invitations, schemas, and imports/exports.
+Optional calibration, direct expert review, consensus, adjudication, and quality
+provenance are included; exports alone do not establish label quality.
 The private managed-service repository holds deployment configuration and
 future commercial extensions. There are no paid plans today.
 See [Open Core](docs/OPEN_CORE.md) for the boundary; labels remain exportable.

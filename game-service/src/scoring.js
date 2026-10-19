@@ -1,11 +1,11 @@
 const ANSWERS = new Set(['yes', 'no', 'unsure', 'bad_question', 'skip']);
 
 const BASE_REWARDS = {
-  yes: { xp: 10, gold: 3 },
-  no: { xp: 10, gold: 3 },
-  unsure: { xp: 6, gold: 1 },
-  bad_question: { xp: 8, gold: 1 },
-  skip: { xp: 2, gold: 0 },
+  yes: { xp: 5, gold: 1 },
+  no: { xp: 5, gold: 1 },
+  unsure: { xp: 5, gold: 1 },
+  bad_question: { xp: 5, gold: 1 },
+  skip: { xp: 0, gold: 0 },
 };
 
 const RANKS = [
@@ -95,11 +95,9 @@ export function scoreVerdict(event = {}) {
   const answer = normalizeAnswer(event.answer);
   const base = BASE_REWARDS[answer];
   const correction = answer === 'no' && hasCorrection(event.correction);
-  const xp = base.xp
-    + priorityBonus(effectivePriority(event))
-    + confidenceBonus(effectiveConfidence(event))
-    + (correction ? 8 : 0);
-  const gold = base.gold + (correction ? 2 : 0);
+  // Participation only. Neither a correction nor model confidence proves quality.
+  const xp = base.xp;
+  const gold = base.gold;
   return {
     answer,
     xp,
@@ -142,12 +140,12 @@ export function dailyQuests(profile = {}) {
       complete: lowConfidenceToday >= 5,
     },
     {
-      key: 'scribe_truth',
-      title: 'Scribe the Truth',
-      detail: 'Correct 3 wrong claims',
-      progress: Math.min(correctionsToday, 3),
-      target: 3,
-      complete: correctionsToday >= 3,
+      key: 'careful_review',
+      title: 'Review with care',
+      detail: 'Review 5 claims; uncertainty is welcome',
+      progress: Math.min(verdictsToday, 5),
+      target: 5,
+      complete: verdictsToday >= 5,
     },
   ];
 }

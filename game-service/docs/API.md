@@ -148,8 +148,8 @@ Response:
   "duplicate": false,
   "eventId": "Davide:dailySale:ebyUS:123:component_title_or_label",
   "awarded": {
-    "xp": 24,
-    "gold": 5
+    "xp": 5,
+    "gold": 1
   },
   "profile": {}
 }
@@ -166,7 +166,12 @@ Validation rules:
 ## `GET /api/game/leaderboard?limit=25`
 
 Returns profiles ranked by XP, gold, total verdicts, and reviewer name. The
-limit is clamped between `1` and `100`.
+ranking measures participation rather than label correctness. New verdicts award
+5 XP and 1 gold for `yes`, `no`, `unsure`, or `bad_question`, and zero for `skip`.
+Corrections, card priority, and model confidence add no reward. Existing balances
+remain unchanged. Quality XP is issued separately by the eval backend after
+independent reference checks or qualification; client-supplied quality claims do
+not affect guild rewards. The limit is clamped between `1` and `100`.
 
 Response:
 

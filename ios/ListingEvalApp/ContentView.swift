@@ -910,6 +910,8 @@ struct DeckView: View {
     @State private var cardStartedAt = Date()
     @State private var isShowingSettings = false
     @State private var isShowingGuildHall = false
+    @State private var isShowingTraining = false
+    @State private var qualityFeedbackMessage: String?
     @State private var correctionCard: EvalCard?
     @State private var leaderboard: [GameLeaderboardEntry] = []
     @State private var isSyncingCouriers = false
@@ -947,14 +949,21 @@ struct DeckView: View {
             MediEvalBackground()
             VStack(spacing: 0) {
                 header
+                if let errorMessage { ErrorBanner(message: errorMessage) }
+                if let qualityFeedbackMessage {
+                    Text(qualityFeedbackMessage).font(.callout).padding().background(MediEvalTheme.parchmentLight)
+                }
                 Group {
                     if isLoading && cards.isEmpty {
                         LoadingQuestView()
                     } else if let card = currentCard {
                         ScrollView {
                             VStack(spacing: 14) {
-                                if let errorMessage {
-                                    ErrorBanner(message: errorMessage)
+                                if let rubric = card.reviewRubric, !rubric.text.isEmpty {
+                                    Text("Rubric \(rubric.version): \(rubric.text)").font(.callout).padding().background(MediEvalTheme.parchmentLight)
+                                }
+                                if let quality = card.quality {
+                                    Text(quality.kind == "consistency" ? "Consistency quest · compare your judgment over time" : "Reference check · rubric \(quality.rubricVersion)").font(.callout).padding().background(MediEvalTheme.parchmentLight)
                                 }
                                 SwipeableQuestCard(card: card, isSubmitting: isSubmitting) { answer in
                                     chooseAnswer(answer)
@@ -985,6 +994,9 @@ struct DeckView: View {
                 SettingsView(showsDoneButton: true)
             }
             .environmentObject(settings)
+        }
+        .sheet(isPresented: $isShowingTraining, onDismiss: { Task { await refresh() } }) {
+            QualityTrainingView().environmentObject(settings)
         }
         .sheet(isPresented: $isShowingGuildHall) {
             GuildHallView(
@@ -1062,7 +1074,7 @@ struct DeckView: View {
 
     private func chooseAnswer(_ answer: EvalAnswer) {
         guard !isSubmitting else { return }
-        if answer == .no, let currentCard {
+        if answer == .no, let currentCard, currentCard.quality == nil {
             correctionCard = currentCard
         } else {
             Task { await submit(answer) }
@@ -1183,18 +1195,25 @@ struct DeckView: View {
             correction: correction,
             notes: "",
             durationMs: Int(Date().timeIntervalSince(cardStartedAt) * 1000),
-            clientGeneratedAt: generatedAt
+            clientGeneratedAt: generatedAt,
+            rubricVersion: card.reviewRubric?.version ?? card.quality?.rubricVersion
         )
         let gamePayload = gameVerdictPayload(card: card, payload: payload)
         var evalAccepted = false
         do {
-            try await client.submitResult(payload)
-            submittedCount += 1
+            if card.quality != nil {
+                let feedback = try await client.submitQualityResult(payload)
+                guard submittingScope == dashboardReviewScope, !Task.isCancelled else { isSubmitting = false; return }
+                qualityFeedbackMessage = feedback.message + (feedback.verifiedQualityBonus > 0 ? " +\(feedback.verifiedQualityBonus) Quality XP." : "")
+            } else {
+                try await client.submitResult(payload)
+                submittedCount += 1
+            }
             reviewedCards.mark(cardId: card.cardId, reviewer: submittingReviewer, serviceKey: submittingScope)
             evalAccepted = true
         } catch {
             if mediEvalShouldQueueSubmissionFailure(error) {
-                outbox.enqueue(payload, gamePayload: legacy ? gamePayload : nil, scope: submittingOutboxScope)
+                outbox.enqueue(payload, gamePayload: legacy && card.quality == nil ? gamePayload : nil, scope: submittingOutboxScope)
                 courierStatusMessage = "Sealed one eval verdict for later."
             } else {
                 errorMessage = mediEvalErrorMessage(error, serviceName: "castle gate")
@@ -1203,8 +1222,8 @@ struct DeckView: View {
             }
         }
         guard submittingScope == dashboardReviewScope, !Task.isCancelled else { isSubmitting = false; return }
-        progress.record(answer: answer, correction: correction, card: card)
-        if evalAccepted && legacy {
+        if card.quality == nil { progress.record(answer: answer, correction: correction, card: card) }
+        if evalAccepted && legacy && card.quality == nil {
             Task { @MainActor in
                 let sent = await submitAcceptedGameVerdicts([gamePayload])
                 if sent > 0 {
@@ -1232,7 +1251,8 @@ struct DeckView: View {
                 )
             },
             includeCard: { card in
-                !hiddenCardIds.contains(card.cardId)
+                if card.reviewRubric != nil { return !outbox.pendingCardIds(scope: settings.outboxScope).contains(card.cardId) }
+                return !hiddenCardIds.contains(card.cardId)
             }
         )
     }
@@ -1336,6 +1356,9 @@ struct DeckView: View {
                 reviewer: settings.reviewerDisplayName,
                 progress: progress
             )
+            Button("Training Grounds & Consistency") { isShowingTraining = true }
+                .font(.subheadline.bold()).foregroundStyle(MediEvalTheme.parchmentLight)
+                .disabled(isSubmitting || isLoading || isSyncingCouriers)
             if !settings.usesLegacyConnection {
                 Menu {
                     ForEach(account.batches) { batch in
@@ -3007,6 +3030,111 @@ struct AnswerBar: View {
     }
 }
 
+struct QualityTrainingView: View {
+    @EnvironmentObject private var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+    @State private var snapshot: QualitySnapshot?
+    @State private var card: EvalCard?
+    @State private var kind = "practice"
+    @State private var message = ""
+    @State private var feedback = ""
+    @State private var busy = false
+    @State private var eventId = UUID().uuidString
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Training Grounds").font(.title.bold())
+                    Text("Calibration is optional unless your batch owner requires qualification. Solo experts can review directly.")
+                    if let snapshot {
+                        Text("Mode: \(snapshot.settings.mode) · Calibration: \(snapshot.settings.calibration)")
+                        Text("Rubric \(snapshot.settings.rubricVersion): \(snapshot.settings.rubric)")
+                        Text(snapshot.qualificationRequired ? "Qualification required for this batch" : "Direct review available")
+                        if snapshot.qualification.available > 0 || snapshot.qualification.attempted > 0 {
+                            Text("Qualification: \(snapshot.qualification.status.replacingOccurrences(of: "_", with: " ")) · \(snapshot.qualification.attempted)/\(snapshot.qualification.required)")
+                        }
+                        if let accuracy = snapshot.qualification.accuracy {
+                            Text("Reference agreement: \(Int(accuracy * 100))%")
+                        }
+                        Text("Reference checks: \(snapshot.checks.matched)/\(snapshot.checks.count) matched")
+                        Text("Consistency: \(snapshot.consistency.matched)/\(snapshot.consistency.count) repeated judgments matched")
+                        Text("Quality XP: \(snapshot.qualityXP) · earned from independent reference checks and qualification")
+                        Text("Consistency measures repeatability, not independent correctness. XP measures participation.").font(.caption)
+                    }
+                    Picker("Quest type", selection: $kind) {
+                        Text("Practice").tag("practice")
+                        Text("Qualification").tag("qualification")
+                        Text("Reference check").tag("check")
+                        Text("Consistency").tag("consistency")
+                    }.disabled(busy)
+                    Button("Next quest") { Task { await nextQuest() } }.disabled(busy)
+                    if !message.isEmpty { Text(message).foregroundStyle(.secondary) }
+                    if !feedback.isEmpty { Text(feedback).padding().background(MediEvalTheme.parchmentLight) }
+                    if let card {
+                        Text("Rubric \(card.quality?.rubricVersion ?? ""): \(card.quality?.rubric ?? "")").font(.callout)
+                        EvalCardView(card: card, isSubmitting: busy) { answer in
+                            Task { await submit(answer) }
+                        }.id(card.cardId)
+                    }
+                }.padding()
+            }
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .task(id: settings.reviewScope) { await reload() }
+            .onChange(of: kind) { _, _ in card = nil; feedback = ""; message = "" }
+        }
+    }
+
+    @MainActor private func reload() async {
+        card = nil
+        guard let client = settings.client else { return }
+        let scope = settings.reviewScope
+        do {
+            let latest = try await client.fetchQuality(reviewer: settings.reviewer)
+            guard scope == settings.reviewScope else { return }
+            snapshot = latest
+        } catch EvalAPIError.badStatus(404, _) {
+            message = "This backend does not offer Training Grounds. Connect to the eval API or run the web demo."
+        } catch { message = mediEvalErrorMessage(error) }
+    }
+
+    @MainActor private func nextQuest() async {
+        guard !busy, let client = settings.client else { return }
+        busy = true
+        defer { busy = false }
+        let scope = settings.reviewScope
+        do {
+            let cards = try await client.fetchQualityCards(reviewer: settings.reviewer, kind: kind)
+            guard scope == settings.reviewScope else { return }
+            card = cards.first
+            eventId = UUID().uuidString
+            feedback = ""
+            message = card == nil ? "No unseen quests available. Your batch owner can add reference examples. Consistency quests become available after regular reviews." : ""
+        } catch { message = mediEvalErrorMessage(error) }
+    }
+
+    @MainActor private func submit(_ answer: EvalAnswer) async {
+        guard !busy, let card, let client = settings.client else { return }
+        busy = true
+        defer { busy = false }
+        let scope = settings.reviewScope
+        let payload = EvalResultPayload(eventId: eventId, runId: settings.pinnedRunId,
+            projectId: client.projectId, userId: settings.accountUserId, workspaceId: settings.accountWorkspaceId,
+            serverURL: settings.accountUserId == nil ? nil : client.baseURL.absoluteString,
+            cardId: card.cardId, reviewer: settings.reviewer, answer: answer, correction: nil,
+            notes: "", durationMs: nil, clientGeneratedAt: ISO8601DateFormatter().string(from: Date()))
+        do {
+            let result = try await client.submitQualityResult(payload)
+            guard scope == settings.reviewScope else { return }
+            feedback = result.message + (result.verifiedQualityBonus > 0 ? " +\(result.verifiedQualityBonus) Quality XP." : "")
+            self.card = nil
+            let latest = try await client.fetchQuality(reviewer: settings.reviewer)
+            guard scope == settings.reviewScope else { return }
+            snapshot = latest
+        } catch { message = mediEvalErrorMessage(error) }
+    }
+}
+
 struct GuildHallView: View {
     let summary: EvalSummary?
     let submittedCount: Int
@@ -3075,7 +3203,7 @@ struct GuildHallView: View {
                             } else {
                                 QuestRow(icon: "flame.fill", title: "Keep the torch lit", detail: "Judge 10 claims today", complete: submittedCount >= 10)
                                 QuestRow(icon: "eye.fill", title: "Dungeon of Doubt", detail: "Prioritize low-confidence claims", complete: false)
-                                QuestRow(icon: "pencil.and.scribble", title: "Scribe the truth", detail: "Correct wrong claims with reasons", complete: progress.correctionCount > 0)
+                                QuestRow(icon: "pencil.and.scribble", title: "Review with care", detail: "Uncertainty is welcome; rewards measure participation", complete: submittedCount >= 5)
                             }
                             if outboxCount > 0 {
                                 QuestRow(icon: "arrow.triangle.2.circlepath", title: "Eval courier pouch", detail: "\(outboxCount) eval verdicts waiting to sync", complete: false)

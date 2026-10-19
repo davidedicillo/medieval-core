@@ -185,6 +185,11 @@ async function main() {
       command: 'npm run oss:check',
     });
     runCheck({
+      title: 'extracted documentation and agent contracts',
+      cwd: appExtractDir,
+      command: 'npm run docs:check',
+    });
+    runCheck({
       title: 'extracted iOS project verifier',
       cwd: appExtractDir,
       command: 'npm run verify:xcode',

@@ -2,9 +2,12 @@
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { EvalFileStore } from './store.mjs';
 import { renderDashboardPage } from './dashboard.mjs';
+import { qualityRequest } from './quality-routes.mjs';
+import { serveDocumentation } from '../documentation/server.mjs';
 import { generateCardsFromRecords, previewCardsFromText } from '../../packages/schema/card-generator.mjs';
 import { batchIdFrom, normalizeProjectId, normalizeReviewer, text } from '../../packages/schema/index.mjs';
 
@@ -224,6 +227,7 @@ export function createEvalApiServer({
   return http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
+      if (await serveDocumentation(req, res, url)) return;
       if (req.method === 'OPTIONS') return send(res, 204, '');
       if (url.pathname === '/' && req.method === 'GET') {
         return html(res, renderDashboardPage({
@@ -236,9 +240,16 @@ export function createEvalApiServer({
       if (url.pathname === '/healthz' && req.method === 'GET') {
         return json(res, 200, { ok: true, service: 'medieval-eval-api' });
       }
+      if (req.method === 'GET' && url.pathname === '/quality') return html(res, await fs.readFile(new URL('./quality.html', import.meta.url), 'utf8'));
       if (url.pathname.startsWith('/api/')) {
         const error = authError(req, token);
         if (error) return json(res, 401, { ok: false, error });
+      }
+      if (url.pathname.startsWith('/api/eval/quality') || url.pathname.startsWith('/api/mobile/eval/quality')) {
+        const response = await qualityRequest({ url, method: req.method,
+          body: req.method === 'POST' ? JSON.parse(await readBody(req) || '{}') : {},
+          store, ctx: requestContext(url), actor: requestContext(url).reviewer, manage: true });
+        return response.type ? send(res, 200, response.body, { 'content-type': response.type }) : json(res, 200, response.body);
       }
 
       if (url.pathname === '/api/mobile/eval/cards' && req.method === 'GET') {

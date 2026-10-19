@@ -221,6 +221,8 @@ export function renderDashboardPage({
         <button data-view-button="create" type="button">Create Batch</button>
         <button data-view-button="detail" type="button">Batch Detail</button>
         ${reviewEnabled ? '<a id="reviewLink" href="/review" style="color: #eef4fb; padding: 10px 12px; text-decoration: none;">Review Cards</a>' : ''}
+        <a id="qualityLink" href="/quality" style="color: #eef4fb; padding: 10px 12px; text-decoration: none;">Quality & Training</a>
+        <a href="/docs" style="color: #eef4fb; padding: 10px 12px; text-decoration: none;">Documentation</a>
       </nav>
       <div class="sidebar-footer">
         <div>OSS Core</div>
@@ -799,6 +801,7 @@ export function renderDashboardPage({
         event.currentTarget.href = '/review?' + queryForContext();
       });
     }
+    el('qualityLink').addEventListener('click', (event) => { event.currentTarget.href = '/quality?' + queryForContext(); });
     document.querySelectorAll('[data-view-jump]').forEach((button) => {
       button.addEventListener('click', () => setView(button.dataset.viewJump));
     });

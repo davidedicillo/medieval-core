@@ -1,0 +1,31 @@
+# MediEval
+
+> Human evaluation cards, reviewer judgments, corrections, optional calibration, team agreement, and auditable label exports.
+
+Documentation describes the source checkout, not guaranteed deployment availability. Detect account-platform versus shared-token mode before using an API. Quality policy and expert designation are batch scoped. Exported labels alone do not establish quality.
+
+## Start
+
+- [Documentation hub](docs/README.md): human guide and service-mode selection.
+- [Agent guide](docs/AGENTS.md): identity, authorization, retries, conflicts, and completion checks.
+- [Machine manifest](docs/agent/manifest.json): versioned inventory and implementation scope.
+- [Workflows](docs/agent/workflows.json): prerequisites, ordered operation IDs, side effects, verification, and stop conditions.
+- [API catalog](docs/agent/api.json): paths, auth contexts, requests, response fields, and retry semantics.
+- [JSON Schemas](docs/agent/schemas.json): recommended client payload contracts.
+- [Examples](docs/agent/examples.json): synthetic records, cards, results, references, and configuration.
+
+## Human guides
+
+- [First batch](docs/QUICKSTART.md)
+- [Concepts](docs/CONCEPTS.md)
+- [Workspaces and permissions](docs/WORKSPACES.md)
+- [Imports](docs/IMPORTING.md)
+- [Web review](docs/REVIEWING.md)
+- [iOS reviewer](docs/IOS_REVIEWER.md)
+- [Quality workflows](docs/QUALITY.md)
+- [Exports](docs/EXPORTING.md)
+- [Operations](docs/OPERATIONS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [API reference](docs/API_REFERENCE.md)
+
+When served by the application, relative links above resolve through its documentation routes. `/llms-full.txt` returns all product guides in one response. Public documentation never includes customer data, session tokens, or reference answers.

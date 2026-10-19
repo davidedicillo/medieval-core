@@ -33,3 +33,6 @@ EVAL_MOBILE_TOKEN=dev-token npm run eval-api
 
 Include the behavior change, verification command, and any schema/API impact.
 For user-facing changes, update the relevant docs in `docs/`.
+Start at `docs/README.md`; update the agent route catalog, schemas, examples,
+and workflows when their contracts change. Run `npm run docs:check` to validate
+links, structured references, runnable payloads, and documentation routes.

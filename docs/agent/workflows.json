@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "medieval-workflows.v1",
+  "operationCatalog": "api.json",
+  "semantics": "Ordered steps are procedures, not automatic authorization. Bind all resource IDs from responses. Evaluate stop conditions before mutations. Verify durable state after uncertain responses.",
+  "workflows": [
+    {
+      "id": "account-first-batch", "services": ["platform"], "guide": "../QUICKSTART.md",
+      "prerequisites": ["User authorizes creating a workspace/project/batch and reviewing supplied data", "Verified session or user-controlled sign-in flow", "Representative source records"],
+      "steps": [
+        { "operation": "identity", "check": "Correct authenticated user and server" },
+        { "operation": "platform-state", "check": "Reuse authorized workspace/project where appropriate" },
+        { "operation": "create-workspace", "when": "No suitable workspace; creation authorized", "save": "workspace.id" },
+        { "operation": "create-project", "when": "No suitable managed project; creation authorized", "save": "project.id" },
+        { "operation": "platform-preview", "check": "Nonzero card count; questions, evidence, and warnings reviewed" },
+        { "operation": "create-draft", "save": "batch.id", "check": "Draft with expected card count" },
+        { "operation": "update-publication", "when": "Publication authorized", "input": { "status": "active" } },
+        { "operation": "discover-batches", "check": "Batch is visible to intended current reviewer" },
+        { "operation": "review-deck", "check": "Actual returned card and current rubric inspected" },
+        { "operation": "submit-result", "check": "Persist eventId/body before submission; verify stored response" },
+        { "operation": "export-results", "check": "Expected card, answer, and authenticated identity present" }
+      ],
+      "success": ["Published batch", "Durable production judgment", "Matching exported row"],
+      "stopConditions": ["Wrong account/server", "Missing manager access", "Empty or incorrect preview", "Uncertain create response before state inspection", "Qualification gate"]
+    },
+    {
+      "id": "invite-reviewer", "services": ["platform"], "guide": "../WORKSPACES.md",
+      "prerequisites": ["Explicit user authorization to send invitation email", "Manager of workspace", "Recipient address and intended access scope"],
+      "steps": [
+        { "operation": "platform-state", "check": "Discover workspace and batch; verify scope" },
+        { "operation": "invite", "check": "Correct recipient, workspace, role, and optional batch" },
+        { "operation": "accept-invitation", "actor": "recipient", "check": "Verified recipient account; acceptance changes membership" },
+        { "operation": "discover-batches", "actor": "recipient", "check": "Only intended published batches visible" }
+      ],
+      "success": ["Recipient accepted valid invitation", "Expected batch visible when published"],
+      "stopConditions": ["No explicit send authorization", "Recipient identity mismatch", "Expired or revoked invitation", "Attempt to invite admin without owner role"]
+    },
+    {
+      "id": "solo-expert-review", "services": ["platform", "eval-api"], "guide": "../QUALITY.md",
+      "prerequisites": ["Authorized manager quality configuration", "Domain expert identity established", "Written rubric"],
+      "steps": [
+        { "operation": "manager-quality", "check": "Current settings, reviewer identity, and rubric version" },
+        { "operation": "configure-quality", "input": { "mode": "solo", "calibration": "optional" }, "check": "Set explicit expertReviewers identity; rubric changes use new version when needed" },
+        { "operation": "review-deck", "check": "Read current card/rubric" },
+        { "operation": "submit-result", "check": "Substantive expert judgment stored" },
+        { "operation": "export-resolved", "check": "Status expert_reviewed and expected resolvedAnswer" }
+      ],
+      "success": ["Expert provenance retained without mandatory qualification"],
+      "stopConditions": ["Owner/admin role mistaken for expertise", "Attempt to describe self-checking as independent validation", "Old rubric submitted"]
+    },
+    {
+      "id": "prepare-required-calibration", "services": ["platform", "eval-api"], "guide": "../QUALITY.md",
+      "prerequisites": ["Authorized manager", "Written rubric", "Independent unseen source pool", "Separate practice, qualification, and check sources"],
+      "steps": [
+        { "operation": "configure-quality", "input": { "calibration": "optional" }, "check": "Save rubric/version and desired qualification count" },
+        { "operation": "add-reference", "repeat": "For each independent reference", "check": "Correct expected answer and explanation; selected source will be reserved from production" },
+        { "operation": "manager-quality", "check": "Enough live qualification references; authors/prior exposure do not block intended reviewers" },
+        { "operation": "configure-quality", "input": { "calibration": "required" }, "check": "Server accepts written rubric and reference count" }
+      ],
+      "success": ["Required gate configured with eligible independent references"],
+      "stopConditions": ["Insufficient references", "Reviewer authored own scored pool", "Overlapping or previously exposed sources", "Claim that default count is a statistical guarantee"]
+    },
+    {
+      "id": "reviewer-qualification", "services": ["platform", "eval-api"], "guide": "../QUALITY.md",
+      "prerequisites": ["Reviewer access to selected batch", "Current rubric understood"],
+      "steps": [
+        { "operation": "own-quality", "check": "Inspect qualificationRequired, expertise exemption, and current status" },
+        { "operation": "quality-deck", "inputQuery": { "kind": "practice" }, "when": "Practice requested" },
+        { "operation": "submit-result", "when": "Practice card returned", "check": "Use virtual card ID; production data remains separate" },
+        { "operation": "quality-deck", "inputQuery": { "kind": "qualification" }, "repeat": "One assignment at a time until complete or no eligible references" },
+        { "operation": "submit-result", "repeat": "Each returned qualification card", "check": "Stable eventId, actual answer; feedback withheld until completion" },
+        { "operation": "own-quality", "check": "Passed, expert-exempt, incomplete, or needs_practice status explicitly reported" }
+      ],
+      "success": ["Passed current-rubric qualification or confirmed legitimate expert exemption"],
+      "stopConditions": ["Empty deck with incomplete status", "Failed set; exposed questions cannot be replayed as retake", "403 production gate remains active"]
+    },
+    {
+      "id": "team-resolution", "services": ["platform", "eval-api"], "guide": "../QUALITY.md",
+      "prerequisites": ["Authorized team policy", "Distinct actual reviewer identities", "Enough independent reviewers"],
+      "steps": [
+        { "operation": "configure-quality", "input": { "mode": "team", "minReviews": 2, "consensusThreshold": 1 }, "check": "Configured policy matches intended study" },
+        { "operation": "review-deck", "actor": "each reviewer", "check": "Full eligible batch available; advanced routing not assumed" },
+        { "operation": "submit-result", "actor": "each reviewer", "check": "Own independent judgment, current rubric, stable eventId" },
+        { "operation": "manager-quality", "check": "Inspect consensus, awaiting_reviews, and needs_adjudication separately" },
+        { "operation": "export-resolved", "check": "Unresolved coverage retained; agreement not described as truth" }
+      ],
+      "success": ["Every card's current resolution status accounted for"],
+      "stopConditions": ["Caller names mistaken for verified independent reviewers", "Abstentions or correction disagreements ignored", "Insufficient reviews"]
+    },
+    {
+      "id": "adjudicate-conflict", "services": ["platform", "eval-api"], "guide": "../QUALITY.md",
+      "prerequisites": ["Manager authorization", "At least one current judgment", "Card and all relevant current evidence inspected"],
+      "steps": [
+        { "operation": "manager-quality", "save": "labels[].basisEventIds", "check": "Fresh exact event basis and rubric" },
+        { "operation": "adjudicate", "check": "Answer, rationale, optional correction, exact ordered basisEventIds" },
+        { "operation": "manager-quality", "check": "Adjudicated current basis; independence flag accurately reported" },
+        { "operation": "export-resolved", "check": "Adjudication rationale and provenance preserved" }
+      ],
+      "success": ["Current adjudicated row with explicit rationale and event basis"],
+      "stopConditions": ["409 changed judgments: refresh and reconsider", "No current production judgment", "Adjudicator's prior review misrepresented as independent"]
+    },
+    {
+      "id": "shared-token-import-review-export", "services": ["eval-api"], "guide": "../SELF_HOSTING.md",
+      "prerequisites": ["Authorized trusted-operator token", "Explicit project/batch/reviewer context", "Canonical cards or source adapter records"],
+      "steps": [
+        { "operation": "health", "check": "Service medieval-eval-api" },
+        { "operation": "eval-preview", "when": "Starting from source records", "check": "Expected generated cards and warnings" },
+        { "operation": "import-cards", "check": "Use canonical cards; replace only if explicitly intended" },
+        { "operation": "review-deck", "check": "Actual imported cards and rubric" },
+        { "operation": "submit-result", "check": "Body reviewer equals query reviewer; stable eventId" },
+        { "operation": "export-results", "check": "Durable rows match expected context" }
+      ],
+      "success": ["Cards imported and reviewed; raw export verified"],
+      "stopConditions": ["Account platform detected instead", "Token missing/invalid", "Unapproved replace or context mismatch"]
+    }
+  ]
+}
