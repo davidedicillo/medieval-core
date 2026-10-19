@@ -29,18 +29,11 @@ The asset catalog also includes 45 extracted `MediEval*` image sets, including:
   `MediEvalTorch`, `MediEvalWoodFrame`, `MediEvalGoldFrame`
 
 The app currently uses `MediEvalSirWrongalot` and the three verdict shield
-sprites directly. The remaining sprites are ready for the next visual pass.
+sprites directly. Other variants are retained as design source material, not
+additional shipped features.
 
 ## Transparency
 
 The generated sources used a flat magenta chroma key. Transparent PNGs were
-created with:
-
-```bash
-python3 ~/.codex/skills/.system/imagegen/scripts/remove_chroma_key.py \
-  --auto-key border \
-  --soft-matte \
-  --transparent-threshold 12 \
-  --opaque-threshold 220 \
-  --despill
-```
+created with a border-keyed soft matte and despill. The processed assets are
+checked in; no local generation tool is required to build or use the app.

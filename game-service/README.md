@@ -134,7 +134,8 @@ MEDIEVAL_RUN_DOCKER_SMOKE=1 npm run preflight
 ## Coolify
 
 See `docs/COOLIFY.md` for the deployment checklist.
-The repo root also includes `docs/VERIFY.md` with the full end-to-end checklist.
+The [maintainer verification guide](../docs/maintainers/VERIFY.md) has the full
+end-to-end checklist.
 
 ## GitHub Verification
 

@@ -1,6 +1,7 @@
 # MediEval Handoff
 
-Use this when moving MediEval to another Mac, GitHub repo, or Coolify.
+Maintainer reference for transferring a checkout or building offline handoff
+bundles. New users should start with [Self-Hosting](../SELF_HOSTING.md).
 
 ## What Is In This Repo
 

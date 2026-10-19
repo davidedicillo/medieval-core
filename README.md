@@ -1,178 +1,99 @@
 # MediEval Core
 
-MediEval Core is the Apache-2.0 licensed foundation for the MediEval human-eval
-platform: the iOS reviewer, account-based web platform, self-hosted eval API,
-optional Postgres-backed game service, and shared eval protocol.
+Review model outputs on your iPhone with a swipe, or in the browser. Import a
+batch of answers and source evidence, collect decisions, corrections, and notes,
+then export labels as JSONL or CSV.
 
-This repository is independently usable and self-hostable. The managed service
-at [medieval.dev](https://medieval.dev) uses the same core, with its deployment
-configuration and future commercial extensions maintained separately. See
-[the open-core boundary](docs/OPEN_CORE.md).
+MediEval currently supports **binary-claim review**: yes, no, unsure,
+bad question, or skip. It does not support rating scales, pairwise ranking,
+multi-label tasks, or span annotation. Rewards are optional, not quality scores.
 
-```text
-.
-├── ios/                 # Xcode project, SwiftUI app source, and app assets
-├── game-service/        # XP, gold, streaks, quests, profiles, leaderboard
-├── services/eval-api/   # Self-hosted eval dashboard/API and JSONL labels
-├── services/platform/   # Accounts, workspaces, invitations, and batch discovery
-├── packages/            # Shared card schema and CLI helpers
-├── docs/                # Handoff, verification, schema, and adapter notes
-├── examples/            # Sample eval cards and MyFireRating CSV data
-└── scripts/             # Monorepo smoke, bundle, and verification scripts
-```
+[Try the browser sample](https://medieval.dev/#demo) without an account.
+The native iOS app must currently be built from source; there is no App Store or
+TestFlight release. Hosted email sign-in is not ready. The self-hosted core is
+usable independently of the managed service.
 
-## Accounts And Assigned Batches
+## Try It Locally
+
+Requires Node.js 22 or later. No database or email provider is needed for the
+web demo.
 
 ```bash
-npm install
-npm run demo:accounts
-```
-
-Open `http://127.0.0.1:5183` and the linked development inbox. Create a workspace
-and project, upload a batch, publish it, and invite reviewers by email. The web
-reviewer and iOS app list only batches available to the signed-in person, with
-recognizable names and individual progress. The local demo starts a separate
-PostgreSQL instance and requires PostgreSQL binaries or `DATABASE_URL`.
-
-The deployed account platform uses `npm run platform`, PostgreSQL, Better Auth,
-and SMTP. See [account setup and deployment](docs/ACCOUNTS.md).
-
-## Local Web Demo
-
-```bash
+git clone https://github.com/davidedicillo/medieval-core.git
+cd medieval-core
+npm ci
 npm run demo:web
 ```
 
-Open the URL printed by the command (normally `http://127.0.0.1:5182`). The
-dashboard starts with MyFireRating and catalog batches, sample labels, and
-exports. Choose **Review Cards** to submit answers, corrections, and notes from
-your browser. Those reviews appear in the dashboard and JSONL/CSV exports.
-Download the sample CSV or JSONL from the review screen to try **Create Batch**.
+Open the URL printed in the terminal. The dashboard includes a **Review Cards**
+link. To try your own import, upload [answer-grounding.csv](examples/answer-grounding.csv)
+in **Create Batch**, choose the **Generic** adapter, preview, then import.
+These three synthetic records match the website sample; they are not a model
+benchmark. See the [input-to-export walkthrough](docs/ANSWER_GROUNDING.md).
 
-The demo uses the real eval API and persists its separate data under
-`.runtime/web-demo`. Restarting preserves your reviews and does not reseed.
-Set `MEDIEVAL_WEB_DEMO_DATA_DIR` to a new directory for a fresh demo, or
-`MEDIEVAL_WEB_DEMO_PORT` to choose a port. By default it binds to loopback with
-no token. The iOS app can use the same URL, reviewer `Davide`, project
-`myfire-rating`, batch `property-review`, and an empty token.
+The demo stores data under `.runtime/web-demo`; restarting preserves it.
+It binds to loopback without a token. Do not expose that demo to the internet.
+Full setup, data paths, and device connection instructions live in
+[Self-Hosting](docs/SELF_HOSTING.md).
 
-Verify the demo with `npm run demo:web:smoke`. The existing `npm run demo`
-command continues to run the iOS demo with simulated guild rewards.
+## Choose A Setup
 
-## iOS App
+| Need | Command | Details |
+| --- | --- | --- |
+| Dashboard and browser reviewer, with sample data | `npm run demo:web` | No external services; persistent local demo data |
+| Empty standalone dashboard/API | `npm run eval-api` | Shared-token access; JSONL label storage |
+| Local accounts and assigned batches | `npm run demo:accounts` | PostgreSQL required; development email inbox |
+| Deployed multi-user platform | `npm run platform` | PostgreSQL, SMTP, HTTPS, and deployment configuration |
+| iOS Simulator demo, with simulated rewards | `npm run demo` | In-memory test backend; resets when stopped |
 
-Open:
+For accounts, workspace roles, invitations, and production deployment, use
+[Accounts](docs/ACCOUNTS.md). Basic membership and direct batch invitations are
+part of the open core, not paid-only features.
 
-```bash
-open ios/ListingEvalApp.xcodeproj
-```
+## iOS Reviewer
 
-MediEval reviews generic binary eval cards. The original sold-listing workflow
-is now one adapter example, not the only data model. Cards should use generic
-`subject` and `media` fields; legacy sold-listing backends can continue sending
-`listing` and `images`.
+Requires a Mac with full Xcode. Open `ios/ListingEvalApp.xcodeproj`; the installed
+app is named MediEval. A physical iPhone requires code signing with an Apple
+development team.
 
-For a new backend integration, start with:
+With the account platform, sign in and choose from **My Batches**. Standalone
+API integrations also support manual server URL/token configuration.
+[iOS setup](ios/README.md) covers both paths and physical-device networking.
 
-- `docs/INTEGRATION.md`
-- `docs/CARD_SCHEMA.md`
-- `docs/ADAPTER_GUIDE.md`
-- `docs/EVAL_API.md`
-- `docs/SELF_HOSTING.md`
+Swipe right for yes or left for no, or choose unsure. The app's Aye / Nay / Hmm
+labels are presentation only; exported answers use the canonical API values.
+Source evidence, corrections, notes, and offline retries are part of the review
+workflow. Optional XP, gold, and leaderboards use a separate
+[rewards service](game-service/README.md) and do not establish label quality.
 
-## Self-Hosted Eval Core
+## Integrate Your Data
 
-Run the open-source dashboard/API:
+- [Worked example](docs/ANSWER_GROUNDING.md): CSV input, a generated card, and a result.
+- [Card and result schema](docs/CARD_SCHEMA.md): fields and canonical answer values.
+- [Mobile integration](docs/INTEGRATION.md): backend routes and retry behavior.
+- [Eval API](docs/EVAL_API.md): standalone dashboard and export endpoints.
+- [Adapter guide](docs/ADAPTER_GUIDE.md): map your own source records into cards.
 
-```bash
-EVAL_MOBILE_TOKEN=dev-token npm run eval-api
-```
+The generic importer is the starting point for answer grounding, extraction,
+and classification checks. [MyFireRating](examples/myfire-rating.csv) is a
+domain-specific adapter example, not a requirement or a validated risk model.
 
-Open `http://127.0.0.1:5182`, create a project and batch, upload CSV/JSONL, then
-preview and import generated eval cards. Point the iOS app at the same URL and
-token to review the batch. Accepted labels are stored as durable JSONL under
-`.runtime/medieval-eval`.
+## Open Source And Hosting
 
-The bundled dashboard covers the core loop:
+The Apache-2.0 core includes the iOS app, web review, dashboard/API, accounts,
+workspaces, permissions, invitations, schemas, and imports/exports.
+The private managed-service repository holds deployment configuration and
+future commercial extensions. There are no paid plans today.
+See [Open Core](docs/OPEN_CORE.md) for the boundary; labels remain exportable.
 
-- create projects and batches
-- upload CSV, JSON, or JSONL source data
-- preview generated cards before import
-- review the batch from the iOS app
-- inspect labels, corrections, source context, event IDs, and duplicate status
-- export durable JSONL/CSV human labels
+## Contribute Or Report A Problem
 
-For a realistic first adapter, upload `examples/myfire-rating.csv` in **Create
-Batch** and choose `MyFireRating`. The adapter turns each property/fire-risk row
-into review cards for rating correctness, explanation/evidence support, and
-mitigation recommendation.
+Maintained by [Davide Di Cillo](https://github.com/davidedicillo).
+Use [GitHub issues](https://github.com/davidedicillo/medieval-core/issues) for
+bugs and integration questions, and [private vulnerability reporting](SECURITY.md)
+for security concerns. Setup confusion and examples from actual review workflows
+are useful contributions.
 
-You can also import existing eval-card JSONL from the terminal:
-
-```bash
-node packages/cli/medieval-eval.mjs import \
-  --base-url http://127.0.0.1:5182 \
-  --token dev-token \
-  --project personal \
-  --batch first-batch \
-  --replace \
-  --file examples/cards.jsonl
-```
-
-To verify the self-hosted loop:
-
-```bash
-npm run eval-api:smoke
-```
-
-The open-source core includes the iOS reviewer app, eval API contract,
-self-hosted dashboard/API, JSONL persistence, import/export helpers, examples,
-and smoke tests. Future paid layers should live above that core: hosted
-reliability, teams, quality workflows, enterprise controls, and managed reviewer
-supply. See `docs/OPEN_CORE.md`.
-
-## Game Service
-
-The optional game service powers durable XP, gold, streaks, quests, profiles,
-and leaderboard data. If it is not configured, the app still submits eval
-results and keeps local progress on-device.
-
-For Coolify, use:
-
-- **Base Directory:** `/game-service`
-- **Dockerfile:** `Dockerfile`
-- **Health check path:** `/ready`
-
-See `game-service/docs/COOLIFY.md`.
-
-## External Eval Adapters
-
-MediEval does not own company-specific analysis pipelines. Those live in the
-producer's repo and act as eval adapters by exposing the mobile eval endpoints:
-
-- `GET /api/mobile/eval/cards`
-- `POST /api/mobile/eval/results`
-- `GET /api/mobile/eval/summary`
-
-The current listing-analysis adapter belongs with the analyzer/scraper project,
-not inside this repo. To run MediEval's optional local integration smoke against
-an external adapter, point `MEDIEVAL_EVAL_ADAPTER_DIR` at that adapter repo.
-
-## Verification
-
-Run the full local preflight from the repo root:
-
-```bash
-npm run preflight
-```
-
-Create and verify handoff bundles:
-
-```bash
-npm run bundle
-npm run bundle:verify
-npm run bundle:smoke
-```
-
-See `docs/VERIFY.md` for the longer checklist and `docs/HANDOFF.md` for moving
-the app/server to another machine.
+[Contributing](CONTRIBUTING.md) covers checks and pull requests.
+[Maintainer runbooks](docs/maintainers/README.md) cover simulator verification,
+packaging, and handoff. They are not required to try the product.

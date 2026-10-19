@@ -3,14 +3,12 @@
 The self-hosted server in `services/eval-api` implements the community eval API
 used by the iOS app and the dashboard.
 
-## Run Locally
+## Setup
 
-```bash
-EVAL_MOBILE_TOKEN=dev-token npm run eval-api
-```
-
-Open `http://127.0.0.1:5182` for the dashboard. Runtime data is written under
-`.runtime/medieval-eval` unless `MEDIEVAL_EVAL_DATA_DIR` is set.
+Follow [Self-Hosting](SELF_HOSTING.md) for installation, standalone tokens,
+runtime data paths, and account-platform deployment. This page is the API
+reference for the standalone service; the account platform has its own
+[authenticated routes](ACCOUNTS.md#api).
 
 ## Auth
 

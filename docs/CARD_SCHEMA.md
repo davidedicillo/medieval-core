@@ -9,48 +9,37 @@ trace, a catalog item, or any other subject.
 ```json
 {
   "schemaVersion": "eval-card.v1",
-  "cardId": "run-123:item-456:color",
+  "cardId": "website-sample:answer-grounding:sample-002:claim",
   "cardType": "binary_claim",
-  "question": "Is the extracted color correct?",
+  "question": "Is this answer supported by the source?",
   "claim": {
-    "template": "attribute_color",
-    "path": "attributes.color",
-    "value": "blue"
+    "template": "generic_claim",
+    "path": "value",
+    "value": "This waterproof notebook has 96 dotted pages and a recycled paperboard cover."
   },
-  "sourceKey": "catalog:item-456",
+  "sourceKey": "sample-002",
   "priority": "medium",
-  "confidence": 0.62,
+  "confidence": null,
   "subject": {
-    "title": "Catalog item 456",
-    "subtitle": "Attribute extraction",
-    "url": "https://example.com/items/456",
-    "source": "catalog",
-    "metadata": {
-      "category": "apparel"
-    }
+    "title": "Product record / Field notebook",
+    "subtitle": "Synthetic answer-grounding example",
+    "url": null,
+    "source": "csv",
+    "metadata": {}
   },
-  "media": [
-    {
-      "url": "https://example.com/items/456.jpg",
-      "type": "image",
-      "label": "Source image",
-      "position": 1,
-      "source": "catalog"
-    }
-  ],
+  "media": [],
   "analysisContext": {
-    "summary": "The model extracted blue from the product image.",
-    "model": "example-model",
-    "provider": "example-provider",
-    "analysisStage": "attribute-extraction",
-    "warnings": []
+    "summary": "An illustrative answer contradicts its source record.",
+    "model": "",
+    "provider": "",
+    "analysisStage": "answer-grounding",
+    "warnings": ["Synthetic teaching example, not an actual model run."]
   },
   "evidence": [
     {
-      "source": "image",
-      "detail": "The item appears blue in the primary image.",
-      "confidence": 0.62,
-      "imagePositions": ["1"]
+      "source": "source_record",
+      "detail": "Cover: recycled paperboard. Pages: 96. Paper: dotted, 100 gsm. Dimensions: 140 x 210 mm. The notebook is not waterproof.",
+      "confidence": null
     }
   ]
 }
@@ -109,12 +98,12 @@ The app posts:
 {
   "eventId": "uuid",
   "batchId": "optional-batch-id",
-  "cardId": "run-123:item-456:color",
-  "reviewer": "Davide",
+  "cardId": "website-sample:answer-grounding:sample-002:claim",
+  "reviewer": "reviewer-1",
   "answer": "no",
   "correction": {
-    "correctAnswer": "green",
-    "reasonTags": ["wrong_item"]
+    "correctAnswer": "The notebook has 96 dotted pages and is not waterproof.",
+    "reasonTags": ["unsupported_claim"]
   },
   "notes": "",
   "durationMs": 1200,
