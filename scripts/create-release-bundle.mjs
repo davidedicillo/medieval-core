@@ -33,6 +33,7 @@ const commonExcludedNames = new Set([
 
 function shouldExclude(name) {
   if (commonExcludedNames.has(name)) return true;
+  if (name.startsWith('.env.') && name !== '.env.example') return true;
   if (name.endsWith('.xcuserstate')) return true;
   if (name.endsWith('.xcscmblueprint')) return true;
   if (name.endsWith('.moved-aside')) return true;
@@ -98,7 +99,14 @@ async function bundleIOSApp() {
 
   await copyClean(iosDir, stageDir);
   await copyClean(path.join(repoDir, 'scripts'), path.join(stageDir, 'scripts'));
-  await copyFilePreservingMode(path.join(repoDir, 'package.json'), path.join(stageDir, 'package.json'));
+  for (const directory of ['docs', 'examples', 'packages', 'services']) {
+    await copyClean(path.join(repoDir, directory), path.join(stageDir, directory));
+  }
+  for (const name of ['package.json', 'package-lock.json', 'LICENSE', 'CONTRIBUTING.md', 'SECURITY.md', 'CODE_OF_CONDUCT.md', 'ROADMAP.md']) {
+    await copyFilePreservingMode(path.join(repoDir, name), path.join(stageDir, name));
+  }
+  const logo = 'Art/Generated/Logo/medieval-logo-transparent-v1.png';
+  await copyFilePreservingMode(path.join(iosDir, logo), path.join(stageDir, 'ios', logo));
   await copyFilePreservingMode(path.join(repoDir, 'docs', 'HANDOFF.md'), path.join(stageDir, 'HANDOFF.md'));
   await copyFilePreservingMode(path.join(repoDir, 'docs', 'VERIFY.md'), path.join(stageDir, 'VERIFY.md'));
   await copyClean(path.join(repoDir, '.github'), path.join(stageDir, '.github'));
