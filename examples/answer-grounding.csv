@@ -1,0 +1,4 @@
+id,title,question,answer,evidence
+sample-001,Support policy / Returns,Is this answer supported by the source?,You can return an unused item within 30 days if you have a receipt or order number.,Unused items can be returned within 30 days of delivery. A receipt or order number is required. Return shipping is free for damaged items.
+sample-002,Product record / Field notebook,Is this answer supported by the source?,"This waterproof notebook has 96 dotted pages and a recycled paperboard cover.","Cover: recycled paperboard. Pages: 96. Paper: dotted, 100 gsm. Dimensions: 140 x 210 mm. The notebook is not waterproof."
+sample-003,Meeting notes / Atlas release,Is this answer supported by the source?,Atlas will pass its accessibility audit before the November release.,The team plans to release Atlas in November. Accessibility testing is still in progress. The notes do not include a confirmed release date or a final accessibility audit result.

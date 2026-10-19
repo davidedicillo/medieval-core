@@ -27,6 +27,7 @@ jobs:
       - name: Install PostgreSQL tools for isolated smoke database
         run: sudo apt-get update && sudo apt-get install -y postgresql
       - run: npm run oss:check
+      - run: node --test scripts/adoption-content.test.mjs
       - run: npm run demo:web:smoke
       - run: npm run platform:smoke
       - name: Build production platform image

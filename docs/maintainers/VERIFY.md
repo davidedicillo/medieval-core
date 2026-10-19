@@ -468,10 +468,10 @@ Pass condition:
 - hard game-service failures keep rewards sealed and show a Settings hint
 - queued eval/game events can be retried from Guild Hall
 
-## Local Checks Available On This Machine
+## Checks Without Full Xcode
 
-This machine can run parser and service checks, but does not currently have the
-full iOS SDK or Docker:
+Parser and service checks can run without a full iOS SDK. Xcode build/launch
+and PostgreSQL-backed checks require their respective dependencies:
 
 ```bash
 ./scripts/preflight.sh

@@ -10,6 +10,11 @@ npm run oss:check
 ./scripts/preflight.sh
 ```
 
+Run commands from the repository root after `npm ci`. The detailed
+[maintainer runbooks](docs/maintainers/README.md) cover simulator, service,
+packaging, and deployment checks. Only run live write checks against data you
+are authorized to change.
+
 Use the self-hosted eval API while working on dashboard or API changes:
 
 ```bash
@@ -28,4 +33,3 @@ EVAL_MOBILE_TOKEN=dev-token npm run eval-api
 
 Include the behavior change, verification command, and any schema/API impact.
 For user-facing changes, update the relevant docs in `docs/`.
-

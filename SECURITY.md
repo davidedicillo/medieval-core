@@ -10,7 +10,10 @@ Security fixes target the current `main` branch until versioned releases exist.
 
 ## Reporting
 
-Report suspected vulnerabilities privately to the project maintainers. Include:
+Use [GitHub private vulnerability reporting](https://github.com/davidedicillo/medieval-core/security/advisories/new)
+to report a suspected vulnerability to the repository maintainers. This channel
+is enabled for the public repository and requires a GitHub account. Do not open
+a public issue containing an exploit or credentials. Include:
 
 - affected route or component
 - reproduction steps
@@ -18,4 +21,3 @@ Report suspected vulnerabilities privately to the project maintainers. Include:
 - whether any tokens, labels, or reviewer data may be exposed
 
 Do not include real customer data in reports.
-

@@ -1,28 +1,30 @@
 # Roadmap
 
-## Phase 0: OSS Readiness
+Status as of 2026-10-18. This is an early release, not a promise of delivery dates.
 
-- Apache-2.0 license, contribution docs, security notes, and public positioning.
-- Clear open-core boundary between the self-hosted core and future paid cloud.
-- Runtime data excluded from git.
+## Available In The Core
 
-## Phase 1: Public Core
+- Binary-claim review in the iOS app and browser, with corrections and notes.
+- Standalone dashboard/API, import preview, and JSONL/CSV exports.
+- Accounts, workspaces, basic roles, direct assignments, invitations, and batch discovery.
+- Card/result contracts and CLI import/export helpers.
+- Offline retry and idempotent result submission in the iOS workflow.
+- Optional reviewer rewards, separate from the label stream.
 
-- Generic iOS reviewer app and shared eval card/result contracts.
-- Self-hostable eval API and dashboard.
-- Example cards and CLI helpers for import/export.
-- Verification that the mobile flow stays idempotent and durable.
+## Not Ready For General Hosted Use
 
-## Phase 2: Self-Hosted Dashboard
+- Hosted sign-in still needs verified email delivery.
+- The native app must be built with Xcode; App Store/TestFlight distribution is not available.
+- Managed-service backup and restore operations need verification.
 
-- Local dashboard for importing cards, tracking queue progress, and exporting
-  JSONL/CSV human labels.
-- Durable JSONL rows as the source of truth.
-- Basic run summaries for first internal users.
+## Next To Validate With Users
 
-## Later Paid Layers
+- A complete import, mobile review, and export session using a real team's data.
+- Setup instructions that a new user can follow without maintainer assistance.
+- Which review tasks benefit from a mobile queue, without assuming faster means better.
 
-- Hosted MediEval Cloud.
-- Team roles, assignments, calibration, consensus, audit logs, SSO, and backups.
-- Managed reviewer bench after repeated customer demand proves the need.
+## Possible Commercial Work
 
+See [Open Core](docs/OPEN_CORE.md) for the single source of truth on potential
+paid capabilities. Basic accounts, invitations, assigned-batch discovery, and
+portable exports remain in the core. No paid plan is available today.
