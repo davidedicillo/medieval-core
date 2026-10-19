@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
-import { manifest, documentationUrl, renderMarkdown } from '../services/documentation/server.mjs';
+import { manifest, servedManifest, documentationUrl, renderMarkdown } from '../services/documentation/server.mjs';
 import { createEvalApiServer } from '../services/eval-api/server.mjs';
 import { EvalFileStore } from '../services/eval-api/store.mjs';
 import { evalAnswerValues, validateEvalCard, validateEvalResult } from '../packages/schema/index.mjs';
@@ -130,7 +130,7 @@ try {
     assert.equal(response.status, 200, entry.file);
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     const text = await response.text();
-    if (entry.file.endsWith('.json')) assert.deepEqual(JSON.parse(text), JSON.parse(await read(entry.file)));
+    if (entry.file.endsWith('.json')) assert.deepEqual(JSON.parse(text), entry.id === 'manifest' ? servedManifest : JSON.parse(await read(entry.file)));
     if (entry.file.endsWith('.md')) {
       assert.match(text, /<!doctype html>/);
       assert.match(response.headers.get('content-security-policy'), /default-src 'none'/);

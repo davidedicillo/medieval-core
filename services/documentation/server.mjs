@@ -12,6 +12,12 @@ export function documentationUrl(file, raw = false) {
   const base = file.startsWith('docs/') ? '/docs/' + file.slice(5) : '/docs/files/' + file;
   return !raw && file.endsWith('.md') ? (file === 'docs/README.md' ? '/docs' : base.slice(0, -3)) : base;
 }
+export const servedManifest = {
+  ...manifest,
+  linkResolution: { file: 'Repository-relative source path', url: 'Absolute path relative to the target server origin' },
+  documents: manifest.documents.map((entry) => ({ ...entry, url: documentationUrl(entry.file), markdownUrl: documentationUrl(entry.file, true) })),
+  resources: manifest.resources.map((entry) => ({ ...entry, url: documentationUrl(entry.file, true) })),
+};
 const routes = new Map(entries.flatMap((entry) => [[documentationUrl(entry.file), entry], [documentationUrl(entry.file, true), entry]]));
 routes.set('/docs/', entries[0]);
 routes.set('/docs/README', entries[0]);
@@ -102,6 +108,7 @@ export async function serveDocumentation(req, res, url) {
   }
   const entry = routes.get(url.pathname);
   if (!entry) return send(404, 'Documentation page not found.');
+  if (entry.id === 'manifest') return send(200, JSON.stringify(servedManifest, null, 2) + '\n', 'application/json; charset=utf-8');
   const source = await fs.readFile(path.join(root, entry.file), 'utf8');
   if (!entry.file.endsWith('.md') || url.pathname.endsWith('.md')) return send(200, source, (entry.mediaType || 'text/markdown') + '; charset=utf-8');
   const query = (url.searchParams.get('q') || '').trim().slice(0, 150);

@@ -12,6 +12,8 @@ This is product documentation for agents using MediEval, not repository executio
 
 On a server from this checkout, use `/llms.txt` for discovery, `/docs/agent/manifest.json` for the machine manifest, and `/llms-full.txt` for the complete product guide. JSON files are UTF-8, versioned, and have stable operation/workflow IDs. Their local Markdown links resolve relative to the file containing them. The application renderer exposes only a fixed documentation allowlist.
 
+The served manifest adds `url` for every document/resource and `markdownUrl` for human guides. Resolve these absolute paths against the target server origin. `file` is a repository-relative source identifier, not a URL relative to the manifest. Prefer `markdownUrl` when retrieving a guide for an agent; use `url` for the human HTML view or JSON resource.
+
 Parse `schemaVersion` before consuming a machine artifact. Additive fields may appear within a version; ignore unknown optional fields, retain stable IDs, and stop if the major contract version is unsupported. `documentationVersion` versions this documentation independently of the application release. Operation `responseFields` are selected expected fields rather than exhaustive response schemas. Timestamps in examples use ISO 8601; sample IDs and dates are not values to copy into a real evaluation.
 
 ## Discover before mutating
