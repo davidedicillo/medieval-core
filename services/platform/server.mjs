@@ -78,7 +78,7 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
           if (!appId) return send(res, 404, { error: 'App association is not configured.' });
           return send(res, 200, { applinks: { apps: [], details: [{ appID: appId, paths: ['/invite/*', '/batches/*'] }] } });
         }
-        if (req.method === 'GET' && url.pathname === '/demo/logo.png') {
+        if (req.method === 'GET' && ['/assets/medieval-wordmark.png', '/demo/logo.png'].includes(url.pathname)) {
           return send(res, 200, await fs.readFile(new URL('../../ios/Art/Generated/Logo/medieval-logo-transparent-v1.png', import.meta.url)), 'image/png');
         }
         if (req.method === 'GET' && url.pathname === '/demo/myfire-rating.csv') {

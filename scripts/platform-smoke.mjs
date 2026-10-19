@@ -43,6 +43,16 @@ try {
   await request('/api/me',{status:401});
   await request('/assets/platform.js');
   await request('/assets/platform.css');
+  for (const route of ['/', '/invite/branding-check', '/batches/branding-check', '/dev/inbox', '/review']) {
+    const html = (await request(route)).body;
+    assert.match(html, /<img[^>]+alt="MediEval"[^>]+width="1915" height="821"/);
+    assert.doesNotMatch(html, /<strong>MediEval<\/strong>/);
+  }
+  const logo = await fetch(baseURL + '/assets/medieval-wordmark.png');
+  assert.equal(logo.status, 200);
+  assert.match(logo.headers.get('content-type'), /^image\/png/);
+  assert.deepEqual(Buffer.from(await logo.arrayBuffer()), await fs.readFile(new URL('../ios/Art/Generated/Logo/medieval-logo-transparent-v1.png', import.meta.url)));
+  assert.equal((await fetch(baseURL + '/demo/logo.png')).status, 200);
   const aasa=(await request('/.well-known/apple-app-site-association')).body;
   assert.equal(aasa.applinks.details[0].appID,'TEST.com.medieval.app');
   const owner=await signIn('owner@example.com','Owner');
