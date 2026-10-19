@@ -18,6 +18,7 @@ USE_LOCAL_DEMO="${MEDIEVAL_SIMULATOR_USE_LOCAL_DEMO:-0}"
 DEMO_HOST="${MEDIEVAL_DEMO_HOST:-127.0.0.1}"
 DEMO_PORT="${MEDIEVAL_DEMO_PORT:-5199}"
 DEMO_TOKEN="${MEDIEVAL_DEMO_TOKEN:-demo-token}"
+DEMO_PROFILE="${MEDIEVAL_SIMULATOR_DEMO_PROFILE:-smoke}"
 DEMO_LOG="${MEDIEVAL_DEMO_LOG:-${TMPDIR:-/tmp}/medieval-simulator-demo.log}"
 SCREENSHOT_DELAY="${MEDIEVAL_SIMULATOR_SCREENSHOT_DELAY:-2}"
 DEMO_PID=""
@@ -53,7 +54,7 @@ start_demo_backend() {
     exit 1
   fi
 
-  HOST="$DEMO_HOST" MEDIEVAL_DEMO_PORT="$DEMO_PORT" MEDIEVAL_DEMO_TOKEN="$DEMO_TOKEN" \
+  HOST="$DEMO_HOST" MEDIEVAL_DEMO_PORT="$DEMO_PORT" MEDIEVAL_DEMO_TOKEN="$DEMO_TOKEN" MEDIEVAL_DEMO_PROFILE="$DEMO_PROFILE" \
     node "$APP_DIR/scripts/demo-server.mjs" > "$DEMO_LOG" 2>&1 &
   DEMO_PID="$!"
 
@@ -145,7 +146,10 @@ if [[ -z "$SIMULATOR_ID" ]]; then
 fi
 
 printf 'Using simulator: %s\n' "$SIMULATOR_ID"
-open -a Simulator >/dev/null 2>&1 || true
+if [[ "${CI:-}" != "true" ]]; then
+  open -a Simulator >/dev/null 2>&1 || true
+fi
+printf 'Booting simulator without a graphical launch in CI.\n'
 xcrun simctl boot "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
 

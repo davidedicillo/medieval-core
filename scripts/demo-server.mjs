@@ -3,11 +3,16 @@
 import http from 'node:http';
 import os from 'node:os';
 import { deflateSync } from 'node:zlib';
+import { loadShowcaseImage, showcaseCard } from './demo-showcase.mjs';
 
 const port = Number(process.env.PORT ?? process.env.MEDIEVAL_DEMO_PORT ?? 5199);
 const host = process.env.HOST ?? '127.0.0.1';
 const token = String(process.env.MEDIEVAL_DEMO_TOKEN ?? 'demo-token');
 const runId = `demo-${new Date().toISOString().slice(0, 10)}`;
+const demoProfile = process.env.MEDIEVAL_DEMO_PROFILE ?? 'smoke';
+if (!['smoke', 'showcase'].includes(demoProfile)) throw new Error('MEDIEVAL_DEMO_PROFILE must be smoke or showcase');
+const isShowcase = demoProfile === 'showcase';
+const showcasePhoto = isShowcase ? loadShowcaseImage() : null;
 
 const results = [];
 const gameEvents = new Map();
@@ -112,6 +117,7 @@ function localDemoURLs() {
 
 function baseCards(request) {
   const base = publicBaseURL(request);
+  if (isShowcase) return [showcaseCard(base)];
   return [
     {
       schemaVersion: '1.0',
@@ -446,10 +452,10 @@ function hydrateProfile(profile) {
       {
         key: 'torch_lit',
         title: 'Keep the torch lit',
-        detail: 'Judge 4 demo claims',
-        progress: Math.min(profile.today.verdicts, 4),
-        target: 4,
-        complete: profile.today.verdicts >= 4,
+        detail: `Judge ${isShowcase ? 1 : 4} demo claims`,
+        progress: Math.min(profile.today.verdicts, isShowcase ? 1 : 4),
+        target: isShowcase ? 1 : 4,
+        complete: profile.today.verdicts >= (isShowcase ? 1 : 4),
       },
       {
         key: 'scribe_truth',
@@ -580,7 +586,12 @@ async function handle(request, response) {
   if (url.pathname === '/health' || url.pathname === '/ready') {
     return json(response, 200, { ok: true, service: 'medieval-demo-server', database: 'in-memory' });
   }
+  if (url.pathname === '/demo/showcase/curiosity.jpg' && request.method === 'GET' && showcasePhoto) {
+    response.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': showcasePhoto.length, 'cache-control': 'no-store', 'access-control-allow-origin': '*' });
+    return response.end(showcasePhoto);
+  }
   if (url.pathname.startsWith('/demo/images/') && request.method === 'GET') {
+    if (isShowcase) return json(response, 404, { ok: false, error: 'Smoke-test images are not available in the showcase profile.' });
     const name = url.pathname.split('/').pop()?.replace(/\.png$/, '') ?? 'legacy-edition';
     const image = demoPng(name);
     response.writeHead(200, {
