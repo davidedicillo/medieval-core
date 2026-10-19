@@ -92,7 +92,7 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
     <section id="complete" class="complete" hidden><h2>Batch complete</h2><p>All cards have a saved verdict for this reviewer.</p><a class="button" id="results" href="/">View Results</a></section>
     <div id="status" role="status" aria-live="polite"></div>
     <button id="retry" hidden>Retry</button>
-    <footer><a href="/demo/myfire-rating.csv">Sample CSV</a><a href="/demo/cards.jsonl">Sample JSONL</a></footer>
+    <footer><a id="qualityLink" href="/quality">Quality & Training</a><a href="/docs/REVIEWING">Review guide</a><a href="/demo/myfire-rating.csv">Sample CSV</a><a href="/demo/cards.jsonl">Sample JSONL</a></footer>
   </main>
   <script>
     const el = (id) => document.getElementById(id);
@@ -135,6 +135,7 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
       el('complete').hidden = true;
       try {
         const query = new URLSearchParams(context());
+        el('qualityLink').href = '/quality?' + query;
         saveContext();
         const [deck, summary] = await Promise.all([
           api('/api/mobile/eval/cards?' + query + '&limit=1'),
@@ -142,7 +143,7 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
         ]);
         if (generation !== state.generation) return;
         const total = summary.summary.totalCards;
-        const reviewed = total - deck.total;
+        const reviewed = summary.summary.reviewedCards;
         el('progress').max = Math.max(1, total);
         el('progress').value = reviewed;
         el('progressText').textContent = reviewed + ' of ' + total + ' reviewed';
@@ -153,12 +154,13 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
         const card = state.card;
         state.startedAt = Date.now();
         state.eventId = crypto.randomUUID();
-        el('question').textContent = card.question;
+        el('question').textContent = (card.quality ? '[' + card.quality.kind + '] ' : '') + card.question;
         el('value').textContent = card.claim.value;
         el('priority').textContent = card.priority + ' priority';
         el('confidence').textContent = card.confidence == null ? 'Confidence unavailable' : Math.round(card.confidence * 100) + '% confidence';
         el('subject').textContent = card.subject?.title || card.sourceKey;
         el('sourceMeta').textContent = [card.subject?.subtitle, card.subject?.source].filter(Boolean).join(' / ');
+        if (card.reviewRubric?.text) el('sourceMeta').textContent += ' · Rubric ' + card.reviewRubric.version + ': ' + card.reviewRubric.text;
         el('evidence').replaceChildren();
         for (const evidence of card.evidence || []) {
           const item = document.createElement('li');
@@ -187,17 +189,22 @@ export function renderDemoReviewer({ accountMode = false } = {}) {
       setBusy(true);
       status('Saving verdict...');
       const correction = el('correction').value.trim();
+      let qualityFeedback = '';
       try {
-        await api('/api/mobile/eval/results?' + new URLSearchParams(context()), {
+        const result = await api('/api/mobile/eval/results?' + new URLSearchParams(context()), {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ ...context(), eventId: state.eventId, cardId: state.card.cardId, answer, correction: correction ? { correctAnswer: correction } : null, notes: el('notes').value.trim(), durationMs: Date.now() - state.startedAt, clientGeneratedAt: new Date().toISOString() }),
+          body: JSON.stringify({ ...context(), eventId: state.eventId, cardId: state.card.cardId, answer, correction: correction ? { correctAnswer: correction } : null, notes: el('notes').value.trim(), durationMs: Date.now() - state.startedAt, clientGeneratedAt: new Date().toISOString(), rubricVersion: state.card.reviewRubric?.version || state.card.quality?.rubricVersion }),
         });
+        if (result.qualityFeedback) {
+          const f = result.qualityFeedback;
+          qualityFeedback = f.kind === 'consistency' ? (f.consistent ? 'Matches your previous judgment.' : 'Your judgment changed. Consistency measures repeatability, not correctness.') : (f.matchesReference === null ? 'Answer recorded.' : (f.matchesReference ? 'Matches the reference. ' : 'Differs from the reference. ') + (f.explanation || ''));
+        }
       } catch (error) {
         status(error.message, true);
         setBusy(false);
         return;
       }
-      try { await loadCard(); status('Verdict saved.'); } catch (error) { status('Verdict saved. Could not load the next card: ' + error.message, true); }
+      try { await loadCard(); status(qualityFeedback || 'Verdict saved.'); } catch (error) { status('Verdict saved. Could not load the next card: ' + error.message, true); }
     }
     document.querySelectorAll('[data-answer]').forEach((button) => button.addEventListener('click', () => submit(button.dataset.answer)));
     for (const id of ['batch', 'reviewer']) el(id).addEventListener('change', () => { status(''); loadCard().catch((error) => status(error.message, true)); });

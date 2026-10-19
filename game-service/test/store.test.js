@@ -43,7 +43,7 @@ test('Postgres leaderboard includes today quest progress', async () => {
   assert.deepEqual(leaderboard[0].dailyQuests.map((quest) => [quest.key, quest.progress]), [
     ['torch_lit', 10],
     ['dungeon_of_doubt', 5],
-    ['scribe_truth', 2],
+    ['careful_review', 5],
   ]);
 });
 
@@ -174,6 +174,6 @@ test('Postgres verdict insert uses card fallback priority and confidence consist
   assert.ok(verdictInsert, 'expected verdict insert call');
   assert.equal(verdictInsert.params[6], 'high');
   assert.equal(verdictInsert.params[7], 0.2);
-  assert.equal(verdictInsert.params[10], 19);
-  assert.equal(result.awarded.xp, 19);
+  assert.equal(verdictInsert.params[10], 5);
+  assert.equal(result.awarded.xp, 5);
 });

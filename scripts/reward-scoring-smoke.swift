@@ -33,16 +33,16 @@ struct RewardFixture {
 struct RewardScoringSmoke {
     static func main() {
         let fixtures = [
-            RewardFixture(answer: .yes, correction: nil, priority: "high", confidence: 0.2, xp: 19, gold: 3, correctionPresent: false),
-            RewardFixture(answer: .yes, correction: nil, priority: "medium", confidence: 0.5, xp: 14, gold: 3, correctionPresent: false),
-            RewardFixture(answer: .yes, correction: nil, priority: "low", confidence: 0.65, xp: 10, gold: 3, correctionPresent: false),
-            RewardFixture(answer: .no, correction: EvalCorrection(correctAnswer: "Charging cable", reasonTags: ["wrong_item"]), priority: "high", confidence: 0.2, xp: 27, gold: 5, correctionPresent: true),
-            RewardFixture(answer: .no, correction: EvalCorrection(correctAnswer: "  ", reasonTags: ["wrong_item"]), priority: "medium", confidence: nil, xp: 20, gold: 5, correctionPresent: true),
-            RewardFixture(answer: .no, correction: EvalCorrection(correctAnswer: "  ", reasonTags: ["  "]), priority: "low", confidence: 0.9, xp: 10, gold: 3, correctionPresent: false),
-            RewardFixture(answer: .unsure, correction: nil, priority: nil, confidence: 0.34, xp: 11, gold: 1, correctionPresent: false),
-            RewardFixture(answer: .badQuestion, correction: nil, priority: "medium", confidence: 0.5, xp: 12, gold: 1, correctionPresent: false),
-            RewardFixture(answer: .skip, correction: nil, priority: nil, confidence: nil, xp: 2, gold: 0, correctionPresent: false),
-            RewardFixture(answer: .skip, correction: nil, priority: "high", confidence: 0.2, xp: 11, gold: 0, correctionPresent: false)
+            RewardFixture(answer: .yes, correction: nil, priority: "high", confidence: 0.2, xp: 5, gold: 1, correctionPresent: false),
+            RewardFixture(answer: .yes, correction: nil, priority: "medium", confidence: 0.5, xp: 5, gold: 1, correctionPresent: false),
+            RewardFixture(answer: .yes, correction: nil, priority: "low", confidence: 0.65, xp: 5, gold: 1, correctionPresent: false),
+            RewardFixture(answer: .no, correction: EvalCorrection(correctAnswer: "Charging cable", reasonTags: ["wrong_item"]), priority: "high", confidence: 0.2, xp: 5, gold: 1, correctionPresent: true),
+            RewardFixture(answer: .no, correction: EvalCorrection(correctAnswer: "  ", reasonTags: ["wrong_item"]), priority: "medium", confidence: nil, xp: 5, gold: 1, correctionPresent: true),
+            RewardFixture(answer: .no, correction: EvalCorrection(correctAnswer: "  ", reasonTags: ["  "]), priority: "low", confidence: 0.9, xp: 5, gold: 1, correctionPresent: false),
+            RewardFixture(answer: .unsure, correction: nil, priority: nil, confidence: 0.34, xp: 5, gold: 1, correctionPresent: false),
+            RewardFixture(answer: .badQuestion, correction: nil, priority: "medium", confidence: 0.5, xp: 5, gold: 1, correctionPresent: false),
+            RewardFixture(answer: .skip, correction: nil, priority: nil, confidence: nil, xp: 0, gold: 0, correctionPresent: false),
+            RewardFixture(answer: .skip, correction: nil, priority: "high", confidence: 0.2, xp: 0, gold: 0, correctionPresent: false)
         ]
 
         for fixture in fixtures {

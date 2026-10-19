@@ -1,6 +1,6 @@
 # Roadmap
 
-Status as of 2026-10-18. This is an early release, not a promise of delivery dates.
+Status as of 2026-10-19. This is an early release, not a promise of delivery dates.
 
 ## Available In The Core
 
@@ -10,10 +10,15 @@ Status as of 2026-10-18. This is an early release, not a promise of delivery dat
 - Card/result contracts and CLI import/export helpers.
 - Offline retry and idempotent result submission in the iOS workflow.
 - Optional reviewer rewards, separate from the label stream.
+- Optional calibration and direct solo-expert review with versioned rubrics.
+- Separate practice, qualification, and check references, plus personal consistency quests.
+- Independent team review, consensus counts, adjudication, and portable quality provenance.
+- iOS Training Grounds and server-issued quality progress separate from participation rewards.
+- Human product guides, structured agent workflows, and a public documentation hub.
 
 ## Not Ready For General Hosted Use
 
-- Hosted sign-in still needs verified email delivery.
+- Hosted email delivery is configured; validate the complete workflow for each team's deployment.
 - The native app must be built with Xcode; App Store/TestFlight distribution is not available.
 - Managed-service backup and restore operations need verification.
 

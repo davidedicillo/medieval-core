@@ -180,6 +180,15 @@ struct PayloadContractSmoke {
         expect(!mediEvalShouldQueueSubmissionFailure(EvalAPIError.badStatus(401, "bad token")), "bad tokens should not queue silently")
         expect(!mediEvalShouldQueueSubmissionFailure(EvalAPIError.badStatus(400, "unknown card")), "permanent dashboard rejections should not queue silently")
         expect(!mediEvalShouldQueueSubmissionFailure(URLError(.badURL)), "bad URLs should not queue silently")
+        expect(EvalAPIError.badStatus(403, "Complete qualification in Training Grounds before reviewing this batch.").localizedDescription.contains("Training Grounds"), "qualification guidance must not be replaced with a token error")
+
+        let qualityCardJSON = Data("""
+        {"schemaVersion":"eval-card.v1","cardId":"quality:owned-quest","cardType":"binary_claim","question":"Is this supported?","claim":{"template":"support","path":"answer","value":"blue"},"sourceKey":"example","quality":{"assignmentId":"owned-quest","kind":"qualification","rubricVersion":"2","rubric":"Use source evidence."}}
+        """.utf8)
+        let qualityCard = try! JSONDecoder().decode(EvalCard.self, from: qualityCardJSON)
+        expect(qualityCard.quality?.kind == "qualification", "quality quests must decode without reference answers")
+        let roundTrip = try! JSONDecoder().decode(EvalCard.self, from: JSONEncoder().encode(qualityCard))
+        expect(roundTrip.quality?.rubricVersion == "2", "quality metadata must survive persistence")
 
         print("Payload contract smoke passed")
     }

@@ -41,6 +41,14 @@ try {
     return { token:result.response.headers.get('set-auth-token'),user:result.body.user,cookie:result.response.headers.getSetCookie().map((s)=>s.split(';')[0]).join('; ') };
   }
   await request('/api/me',{status:401});
+  // Documentation is public, but never grants access to account or label data.
+  assert.match((await request('/docs')).body, /MediEval documentation/);
+  assert.match((await request('/docs/QUALITY')).body, /Calibration is/);
+  assert.equal((await request('/docs/agent/manifest.json')).body.schemaVersion, 'medieval-docs.v1');
+  assert.match((await request('/llms-full.txt')).body, /source: docs\/IOS_REVIEWER.md/);
+  await request('/docs/files/.env', {status:404});
+  await request('/docs/api/me', {status:404});
+  await request('/api/me', {status:401});
   await request('/assets/platform.js');
   await request('/assets/platform.css');
   for (const route of ['/', '/invite/branding-check', '/batches/branding-check', '/dev/inbox', '/review']) {
@@ -121,6 +129,39 @@ try {
   await reviewerReq('/api/platform/projects',{workspaceId:workspace.id,name:'Forbidden'},403);
   await reviewerReq('/api/platform/invitations',{workspaceId:workspace.id,email:'attacker@example.com',role:'admin'},403);
   await reviewerReq('/api/eval/projects',undefined,404);
+  // Quality management follows batch permissions; independent reference checks use session identity.
+  const qualityQuery='?'+query;
+  await reviewerReq('/api/eval/quality'+qualityQuery,undefined,403);
+  await reviewerReq('/api/eval/quality/settings'+qualityQuery,{calibration:'off'},403);
+  await request('/api/mobile/eval/quality'+qualityQuery,{token:outsider.token,status:403});
+  const ownQuality=(await reviewerReq('/api/mobile/eval/quality'+qualityQuery)).body;
+  assert.equal(ownQuality.labels,undefined);
+  assert.equal(ownQuality.references,undefined);
+  assert.equal(ownQuality.reviewer,reviewer.user.id);
+  const reference={...cards[0],cardId:'qualification-only',sourceKey:'qualification-only-source'};
+  await ownerReq('/api/eval/quality/references'+qualityQuery,{kind:'qualification',card:reference,answer:'yes',explanation:'Expert-reviewed qualification example.'});
+  await ownerReq('/api/eval/quality/settings'+qualityQuery,{rubric:'Use the supplied evidence.',qualificationCount:1,passRate:1,calibration:'required',expertReviewers:[owner.user.id]});
+  assert.equal((await reviewerReq('/api/me/batches')).body.batches.length,1,'qualification must not hide assigned batches');
+  await reviewerReq('/api/mobile/eval/cards?'+query,undefined,403);
+  await reviewerReq('/api/mobile/eval/results?'+query,{...payload,eventId:'blocked',cardId:cards[1].cardId},403);
+  assert((await ownerReq('/api/mobile/eval/cards?'+query)).body.cards.length,'the declared project expert reviews directly');
+  const qualification=(await reviewerReq('/api/mobile/eval/quality/cards'+qualityQuery+'&kind=qualification')).body.cards[0];
+  assert.equal(JSON.stringify(qualification).includes('Expert-reviewed qualification'),false);
+  const qualified=(await reviewerReq('/api/mobile/eval/results?'+query,{eventId:'qualification',cardId:qualification.cardId,answer:'yes',reviewer:owner.user.id,userId:owner.user.id})).body;
+  assert.equal(qualified.qualityFeedback.qualification.status,'passed');
+  assert.equal(qualified.qualityFeedback.verifiedQualityBonus,20);
+  assert((await reviewerReq('/api/mobile/eval/cards?'+query)).body.cards.length);
+  assert.equal((await ownerReq('/api/platform/batches/'+batch.id)).body.detail.metrics.totalResultRows,expectedResultRows);
+  const qualityLabels=(await ownerReq('/api/eval/quality'+qualityQuery)).body.labels;
+  const reviewedLabel=qualityLabels.find(row=>row.cardId===cards[0].cardId);
+  await reviewerReq('/api/eval/quality/adjudications'+qualityQuery,{cardId:cards[0].cardId,answer:'yes',rationale:'Spoofed adjudication',basisEventIds:reviewedLabel.basisEventIds},403);
+  const adjudicated=(await ownerReq('/api/eval/quality/adjudications'+qualityQuery,{cardId:cards[0].cardId,answer:'yes',rationale:'Owner examined the evidence.',basisEventIds:reviewedLabel.basisEventIds,adjudicator:outsider.user.id})).body.adjudication;
+  assert.equal(adjudicated.adjudicator,owner.user.id);
+  assert.equal(adjudicated.independent,false);
+  const qualityExport=(await ownerReq('/api/eval/quality/export'+qualityQuery)).body.trim().split('\n').map(JSON.parse);
+  assert.equal(qualityExport.find(row=>row.cardId===cards[0].cardId).status,'adjudicated');
+  assert.equal((await reviewerReq('/api/eval/results/export?'+query)).body.includes('Owner examined the evidence.'),false,'reviewer exports must not reveal other reviewers or adjudications');
+  await ownerReq('/api/eval/quality/settings'+qualityQuery,{calibration:'optional'});
   const otherBatch=(await ownerReq('/api/platform/batches',{...input,name:'Workspace batch',audience:'workspace'})).body.batch;
   await ownerReq('/api/platform/batches/'+otherBatch.id,{status:'active'});
   assert.equal((await reviewerReq('/api/me/batches')).body.batches.length,1,'batch guests cannot see workspace-wide batches');

@@ -12,6 +12,7 @@ enum EvalAPIError: LocalizedError {
         case .badStatus(let status, let message):
             let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
             let preview = trimmed.count > 240 ? "\(trimmed.prefix(240))..." : trimmed
+            if status == 403 && trimmed.contains("Training Grounds") { return preview }
             if status == 401 || status == 403 {
                 return "The server rejected the royal seal. Check the token and try again."
             }
@@ -43,6 +44,9 @@ extension EvalDeckResponse: MediEvalOKResponse {}
 extension EvalSummaryResponse: MediEvalOKResponse {}
 extension GameProfileResponse: MediEvalOKResponse {}
 extension GameLeaderboardResponse: MediEvalOKResponse {}
+extension QualitySnapshot: MediEvalOKResponse {}
+extension QualityDeck: MediEvalOKResponse {}
+extension QualitySubmissionResponse: MediEvalOKResponse {}
 
 private func mediEvalServerMessage(from data: Data) -> String {
     if let body = try? JSONDecoder().decode(MediEvalErrorResponse.self, from: data),
@@ -215,6 +219,35 @@ struct EvalAPIClient {
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response: response, data: data)
         _ = try decodeMediEvalResponse(MediEvalBasicOKResponse.self, from: data)
+    }
+
+    func fetchQuality(reviewer: String) async throws -> QualitySnapshot {
+        let url = makeURL(path: "/api/mobile/eval/quality", queryItems: [URLQueryItem(name: "reviewer", value: reviewer)])
+        let (data, response) = try await URLSession.shared.data(for: authorizedRequest(url: url))
+        try validate(response: response, data: data)
+        return try decodeMediEvalResponse(QualitySnapshot.self, from: data)
+    }
+
+    func fetchQualityCards(reviewer: String, kind: String) async throws -> [EvalCard] {
+        let url = makeURL(path: "/api/mobile/eval/quality/cards", queryItems: [URLQueryItem(name: "reviewer", value: reviewer), URLQueryItem(name: "kind", value: kind)])
+        let (data, response) = try await URLSession.shared.data(for: authorizedRequest(url: url))
+        try validate(response: response, data: data)
+        return try decodeMediEvalResponse(QualityDeck.self, from: data).cards
+    }
+
+    func submitQualityResult(_ payload: EvalResultPayload) async throws -> QualityFeedback {
+        if let accountUserId {
+            guard payload.userId == accountUserId, payload.projectId == projectId, payload.runId == runId,
+                  payload.serverURL == baseURL.absoluteString else { throw EvalAPIError.rejected("This quest belongs to another account or batch.") }
+        }
+        let url = makeURL(path: "/api/mobile/eval/results", queryItems: [], runIdOverride: payload.runId)
+        var request = authorizedRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.httpBody = try JSONEncoder().encode(payload)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response: response, data: data)
+        return try decodeMediEvalResponse(QualitySubmissionResponse.self, from: data).qualityFeedback
     }
 
     private func makeURL(path: String, queryItems: [URLQueryItem], runIdOverride: String? = nil) -> URL {

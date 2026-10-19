@@ -246,16 +246,16 @@ function confidenceBonus(confidence) {
 
 function expectedAward(payload) {
   const base = {
-    yes: { xp: 10, gold: 3 },
-    no: { xp: 10, gold: 3 },
-    unsure: { xp: 6, gold: 1 },
-    bad_question: { xp: 8, gold: 1 },
-    skip: { xp: 2, gold: 0 },
+    yes: { xp: 5, gold: 1 },
+    no: { xp: 5, gold: 1 },
+    unsure: { xp: 5, gold: 1 },
+    bad_question: { xp: 5, gold: 1 },
+    skip: { xp: 0, gold: 0 },
   }[payload.answer];
   const correctionPresent = payload.answer === 'no' && hasCorrection(payload.correction);
   return {
-    xp: base.xp + priorityBonus(payload.priority) + confidenceBonus(payload.confidence) + (correctionPresent ? 8 : 0),
-    gold: base.gold + (correctionPresent ? 2 : 0),
+    xp: base.xp,
+    gold: base.gold,
   };
 }
 

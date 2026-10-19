@@ -4,6 +4,9 @@ Choose the standalone API for a personal/shared-token setup, or the account
 platform for individual sign-in, workspace permissions, and assigned batches.
 The website's browser sample is separate from either installation.
 
+See the [product guide](README.md) and [operations](OPERATIONS.md) for the full
+workflow, including quality policy, exports, and matched database/file backups.
+
 ## Prerequisites
 
 - Node.js 22 or later and npm.

@@ -4,6 +4,10 @@ Native SwiftUI reviewer for binary evaluation cards. Swipe right for yes, left
 for no, or choose unsure. Source evidence, corrections, notes, and offline
 retries are part of the review flow.
 
+For sign-in, batch discovery, offline review, and Training Grounds, read the
+[iOS reviewer guide](../docs/IOS_REVIEWER.md). The [documentation hub](../docs/README.md)
+covers the complete product; this file covers building and integrating the app.
+
 ## Build
 
 Requires a Mac with full Xcode; command-line tools alone cannot build the app.
@@ -62,6 +66,25 @@ deduplicate retries; account queues are scoped to the server, user, and batch.
 The optional [game service](../game-service/README.md) adds XP, gold, streaks,
 quests, and a leaderboard. Reward events are separate from accepted eval
 results. Reward totals are not accuracy or reviewer-agreement measurements.
+
+## Training Grounds And Quality
+
+**Training Grounds & Consistency** opens optional practice, qualification,
+reference checks, and personal consistency quests. Solo experts can review
+directly without a calibration set. A batch administrator can require qualification
+for additional reviewers. The sheet shows the rubric, qualification progress,
+reference agreement, consistency, and server-issued Quality XP. These quests
+have separate IDs, do not become production labels, and do not earn guild rewards.
+Configure the rubric, references, and adjudication in the web **Quality & Training**
+page. See [quality workflows](../docs/QUALITY.md) for batch scope and limitations.
+
+To try these workflows locally, run `npm run demo:web` and connect the app to
+its printed eval URL. The older in-memory `npm run demo` backend does not expose
+quality endpoints.
+
+Production participation rewards are 5 XP and 1 gold for `yes`, `no`, `unsure`,
+or `bad_question`; skipping awards neither. A correction, priority, or model
+confidence does not increase rewards. Existing guild balances are preserved.
 
 ## Contributors
 

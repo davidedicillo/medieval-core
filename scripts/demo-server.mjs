@@ -8,6 +8,8 @@ import { loadShowcaseImage, showcaseCard } from './demo-showcase.mjs';
 const port = Number(process.env.PORT ?? process.env.MEDIEVAL_DEMO_PORT ?? 5199);
 const host = process.env.HOST ?? '127.0.0.1';
 const token = String(process.env.MEDIEVAL_DEMO_TOKEN ?? 'demo-token');
+const publicReview = process.env.MEDIEVAL_DEMO_PUBLIC_REVIEW === '1';
+if (publicReview && token.length < 32) throw new Error('Public review requires a dedicated token of at least 32 characters.');
 const runId = `demo-${new Date().toISOString().slice(0, 10)}`;
 const demoProfile = process.env.MEDIEVAL_DEMO_PROFILE ?? 'smoke';
 if (!['smoke', 'showcase'].includes(demoProfile)) throw new Error('MEDIEVAL_DEMO_PROFILE must be smoke or showcase');
@@ -365,15 +367,15 @@ function scoreVerdict(payload) {
   const answer = normalizeAnswer(payload.answer);
   const correctionPresent = answer === 'no' && hasCorrection(payload.correction);
   const base = {
-    yes: { xp: 10, gold: 3 },
-    no: { xp: 10, gold: 3 },
-    unsure: { xp: 6, gold: 1 },
-    bad_question: { xp: 8, gold: 1 },
-    skip: { xp: 2, gold: 0 },
+    yes: { xp: 5, gold: 1 },
+    no: { xp: 5, gold: 1 },
+    unsure: { xp: 5, gold: 1 },
+    bad_question: { xp: 5, gold: 1 },
+    skip: { xp: 0, gold: 0 },
   }[answer];
   return {
-    xp: base.xp + priorityBonus(payload.priority) + confidenceBonus(payload.confidence) + (correctionPresent ? 8 : 0),
-    gold: base.gold + (correctionPresent ? 2 : 0),
+    xp: base.xp,
+    gold: base.gold,
   };
 }
 
@@ -458,12 +460,12 @@ function hydrateProfile(profile) {
         complete: profile.today.verdicts >= (isShowcase ? 1 : 4),
       },
       {
-        key: 'scribe_truth',
-        title: 'Scribe the truth',
-        detail: 'Send 1 correction',
-        progress: Math.min(profile.today.corrections, 1),
-        target: 1,
-        complete: profile.today.corrections >= 1,
+        key: 'careful_review',
+        title: 'Review with care',
+        detail: 'Review 2 claims; uncertainty is welcome',
+        progress: Math.min(profile.today.verdicts, 2),
+        target: 2,
+        complete: profile.today.verdicts >= 2,
       },
       {
         key: 'fog_cleaver',
@@ -603,6 +605,7 @@ async function handle(request, response) {
     return response.end(image);
   }
   if (url.pathname === '/') {
+    if (publicReview) return text(response, 200, 'MediEval review environment. Synthetic sample data only.');
     const urls = localDemoURLs();
     return text(response, 200, [
       'MediEval demo server is running.',
@@ -671,7 +674,7 @@ const server = http.createServer((request, response) => {
 
 server.listen(port, host, () => {
   console.log('MediEval demo server ready.');
-  console.log(`Token: ${token}`);
+  if (!publicReview) console.log(`Token: ${token}`);
   for (const url of localDemoURLs()) {
     console.log(`URL: ${url}`);
   }

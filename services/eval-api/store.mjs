@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { QualityWorkflow } from './quality.mjs';
 import {
   cardReviewerKey,
   batchIdFrom,
@@ -94,11 +95,15 @@ export function resultsToCsv(results) {
     'durationMs',
     'clientGeneratedAt',
     'serverReceivedAt',
+    'rubricVersion',
+    'reviewerRole',
+    'quality',
+    'qualification',
   ];
   const lines = [columns.join(',')];
   for (const result of results) {
     lines.push(columns.map((column) => {
-      const value = column === 'correction' ? JSON.stringify(result.correction ?? null) : result[column];
+      const value = ['correction', 'quality', 'qualification'].includes(column) ? JSON.stringify(result[column] ?? null) : result[column];
       return csvCell(value);
     }).join(','));
   }
@@ -240,6 +245,7 @@ function enrichResult(result, cards) {
 export class EvalFileStore {
   constructor({ dataDir }) {
     this.dataDir = path.resolve(dataDir);
+    this.quality = new QualityWorkflow(this);
   }
 
   projectDir(projectId) {
@@ -481,6 +487,9 @@ export class EvalFileStore {
     const errors = [];
     normalizedCards.forEach((card, index) => {
       const cardErrors = validateEvalCard(card);
+      if (card.cardId.startsWith('quality:')) cardErrors.push('quality: card IDs are reserved for server-issued quests');
+      delete card.quality;
+      delete card.reviewRubric;
       if (cardErrors.length) errors.push(`card ${index + 1}: ${cardErrors.join('; ')}`);
     });
     if (errors.length) {
@@ -533,12 +542,23 @@ export class EvalFileStore {
     const normalizedBatchId = batchIdFrom({ batchId, runId });
     const cards = await this.listCards({ projectId, batchId: normalizedBatchId });
     const results = await this.listResults({ projectId, batchId: normalizedBatchId });
+    const context = { projectId, batchId: normalizedBatchId, reviewer: normalizedReviewer };
+    const qualityState = await this.quality.read(context);
+    await this.quality.requireQualified(context, normalizedReviewer, qualityState);
+    const referenceSources = new Set(qualityState.references.map((r) => r.card.sourceKey));
     const reviewed = new Set(results
+      .filter((result) => (result.rubricVersion || '1') === qualityState.settings.rubricVersion)
       .filter((result) => cardReviewerKey(result.reviewer, result.cardId).startsWith(`${normalizedReviewer}\n`))
       .map((result) => text(result.cardId)));
-    const visible = reviewState === 'all'
+    let visible = reviewState === 'all'
       ? cards
       : cards.filter((card) => !reviewed.has(text(card.cardId)));
+    visible = visible.filter((card) => !referenceSources.has(card.sourceKey));
+    visible = visible.map((card) => ({ ...card, reviewRubric: { version: qualityState.settings.rubricVersion, text: qualityState.settings.rubric } }));
+    if (reviewState !== 'all') {
+      const automatic = await this.quality.automaticCard(context, cards.filter((c) => reviewed.has(c.cardId) && !referenceSources.has(c.sourceKey)).length);
+      if (automatic) visible = [automatic, ...visible];
+    }
     const pageSize = Math.max(1, Math.min(100, Number(limit) || 20));
     const safePage = Math.max(1, Number(page) || 1);
     const pageCount = Math.max(1, Math.ceil(visible.length / pageSize));
@@ -550,7 +570,7 @@ export class EvalFileStore {
       pageSize,
       pageCount,
       total: visible.length,
-      unfilteredTotal: cards.length,
+      unfilteredTotal: cards.filter((c) => !referenceSources.has(c.sourceKey)).length,
       reviewer: normalizedReviewer,
       reviewState,
     };
@@ -560,13 +580,24 @@ export class EvalFileStore {
     const normalizedBatchId = batchIdFrom({ batchId, runId });
     const cards = await this.listCards({ projectId, batchId: normalizedBatchId });
     const results = await this.listResults({ projectId, batchId: normalizedBatchId });
+    const quality = await this.quality.read({ projectId, batchId: normalizedBatchId });
+    const referenceSources = new Set(quality.references.map((r) => r.card.sourceKey));
+    const productionCards = cards.filter((r) => !referenceSources.has(r.sourceKey));
+    const productionIds = new Set(productionCards.map((c) => c.cardId));
+    const currentResults = results.filter((r) => productionIds.has(r.cardId) && (r.rubricVersion || '1') === quality.settings.rubricVersion);
     return {
       ok: true,
-      summary: summarizeEvalBatch(cards, results, { reviewer, batchId: normalizedBatchId }),
+      summary: summarizeEvalBatch(productionCards, currentResults, { reviewer, batchId: normalizedBatchId }),
     };
   }
 
   async storeResult({ projectId, batchId, runId, payload }) {
+    const context = { projectId, batchId: batchIdFrom({ batchId, runId }), reviewer: payload.userId || payload.reviewer };
+    if (text(payload.cardId).startsWith('quality:')) return this.quality.submit(context, payload);
+    return this.quality.locked(context, () => this.storeProductionResult({ ...context, payload }));
+  }
+
+  async storeProductionResult({ projectId, batchId, runId, payload }) {
     const errors = validateEvalResult(payload);
     if (errors.length) {
       throw Object.assign(new Error(errors.join('; ')), { status: 400 });
@@ -589,12 +620,25 @@ export class EvalFileStore {
         totalResultRows: results.length,
       };
     }
+    const qualityState = await this.quality.read({ projectId, batchId: normalizedBatchId });
+    if (payload.rubricVersion && payload.rubricVersion !== qualityState.settings.rubricVersion) {
+      throw Object.assign(new Error('The rubric changed. Refresh the batch before submitting this review.'), { status: 409 });
+    }
+    await this.quality.requireQualified({ projectId, batchId: normalizedBatchId }, normalizeReviewer(payload.userId || payload.reviewer), qualityState);
+    if (qualityState.references.some((r) => r.card.sourceKey === card.sourceKey)) {
+      throw Object.assign(new Error('This source is reserved for reference quests.'), { status: 409 });
+    }
     const result = normalizeEvalResult(payload, {
       projectId,
       batchId: normalizedBatchId,
       sourceKey: card.sourceKey,
       serverReceivedAt: new Date().toISOString(),
     });
+    result.rubricVersion = qualityState.settings.rubricVersion;
+    result.reviewerRole = qualityState.settings.expertReviewers.includes(normalizeReviewer(payload.userId || payload.reviewer)) ? 'expert' : 'reviewer';
+    result.qualification = { ...this.quality.qualification(qualityState, normalizeReviewer(payload.userId || payload.reviewer)),
+      rubricVersion: qualityState.settings.rubricVersion, policy: qualityState.settings.calibration,
+      expertExemption: result.reviewerRole === 'expert' && qualityState.settings.calibration === 'required' };
     await appendJsonl(this.resultsPath(projectId, normalizedBatchId), result);
     return {
       ok: true,
@@ -704,7 +748,8 @@ export class EvalFileStore {
   }
 
   async exportResults({ projectId, batchId, runId, format = 'jsonl' }) {
-    const results = await this.listResults({ projectId, batchId: batchIdFrom({ batchId, runId }) });
+    const ctx = { projectId, batchId: batchIdFrom({ batchId, runId }) };
+    const results = await this.quality.enrichResults(ctx, await this.listResults(ctx));
     if (format === 'csv') return resultsToCsv(results);
     return results.map((result) => JSON.stringify(result)).join('\n') + (results.length ? '\n' : '');
   }

@@ -55,6 +55,8 @@ struct EvalCard: Identifiable, Codable {
     let media: [EvalMedia]
     let analysisContext: AnalysisContext
     let evidence: [EvidenceSnippet]
+    var quality: QualityAssignment? = nil
+    var reviewRubric: ReviewRubric? = nil
 
     var id: String { cardId }
 
@@ -105,6 +107,8 @@ struct EvalCard: Identifiable, Codable {
         case media
         case analysisContext
         case evidence
+        case quality
+        case reviewRubric
     }
 
     init(from decoder: Decoder) throws {
@@ -124,6 +128,8 @@ struct EvalCard: Identifiable, Codable {
         images = decodedImages.isEmpty ? media.compactMap(EvalImage.init(media:)) : decodedImages
         analysisContext = try container.decodeIfPresent(AnalysisContext.self, forKey: .analysisContext) ?? .empty
         evidence = try container.decodeIfPresent([EvidenceSnippet].self, forKey: .evidence) ?? []
+        quality = try container.decodeIfPresent(QualityAssignment.self, forKey: .quality)
+        reviewRubric = try container.decodeIfPresent(ReviewRubric.self, forKey: .reviewRubric)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -144,7 +150,81 @@ struct EvalCard: Identifiable, Codable {
         }
         try container.encode(analysisContext, forKey: .analysisContext)
         try container.encode(evidence, forKey: .evidence)
+        try container.encodeIfPresent(quality, forKey: .quality)
+        try container.encodeIfPresent(reviewRubric, forKey: .reviewRubric)
     }
+}
+
+struct ReviewRubric: Codable {
+    let version: String
+    let text: String
+}
+
+struct QualityAssignment: Codable {
+    let assignmentId: String
+    let kind: String
+    let rubricVersion: String
+    let rubric: String
+}
+
+struct QualityQualification: Decodable {
+    let attempted: Int
+    let required: Int
+    let available: Int
+    let accuracy: Double?
+    let status: String
+}
+
+struct QualitySettings: Decodable {
+    let mode: String
+    let calibration: String
+    let rubricVersion: String
+    let rubric: String
+}
+
+struct QualityCount: Decodable {
+    let count: Int
+    let matched: Int
+}
+
+struct QualitySnapshot: Decodable {
+    let ok: Bool
+    let settings: QualitySettings
+    let qualification: QualityQualification
+    let checks: QualityCount
+    let consistency: QualityCount
+    let qualityXP: Int
+    let isProjectExpert: Bool
+    let qualificationRequired: Bool
+}
+
+struct QualityDeck: Decodable {
+    let ok: Bool
+    let cards: [EvalCard]
+}
+
+struct QualityFeedback: Decodable {
+    let kind: String
+    let matchesReference: Bool?
+    let expectedAnswer: String?
+    let explanation: String?
+    let consistent: Bool?
+    let previousAnswer: String?
+    let qualification: QualityQualification
+    let verifiedQualityBonus: Int
+
+    var message: String {
+        if kind == "consistency" {
+            return consistent == true ? "This matches your previous judgment. Consistency measures repeatability, not correctness." : "Your judgment changed from \(previousAnswer ?? "the earlier answer"). Consider whether the evidence or rubric explains the difference."
+        }
+        guard let matchesReference else { return "Answer recorded. Qualification feedback appears after the full set. \(qualification.attempted)/\(qualification.required) completed." }
+        return (matchesReference ? "Matches the expert reference. " : "Differs from the expert reference (\(expectedAnswer ?? "")). ") + (explanation ?? "")
+    }
+}
+
+struct QualitySubmissionResponse: Decodable {
+    let ok: Bool
+    let qualityFeedback: QualityFeedback
 }
 
 @MainActor
@@ -372,6 +452,7 @@ struct EvalResultPayload: Codable {
     let notes: String
     let durationMs: Int?
     let clientGeneratedAt: String
+    let rubricVersion: String?
 
     init(
         eventId: String?,
@@ -386,7 +467,8 @@ struct EvalResultPayload: Codable {
         correction: EvalCorrection?,
         notes: String,
         durationMs: Int?,
-        clientGeneratedAt: String
+        clientGeneratedAt: String,
+        rubricVersion: String? = nil
     ) {
         self.eventId = eventId
         self.runId = runId
@@ -401,6 +483,7 @@ struct EvalResultPayload: Codable {
         self.notes = notes
         self.durationMs = durationMs
         self.clientGeneratedAt = clientGeneratedAt
+        self.rubricVersion = rubricVersion
     }
 }
 
@@ -467,8 +550,8 @@ enum MediEvalRewardScoring {
         let correctionPresent = answer == .no && hasCorrection(correction)
         let base = baseReward(answer: answer)
         return MediEvalReward(
-            xp: base.xp + priorityBonus(priority) + confidenceBonus(confidence) + (correctionPresent ? 8 : 0),
-            gold: base.gold + (correctionPresent ? 2 : 0),
+            xp: base.xp,
+            gold: base.gold,
             correctionPresent: correctionPresent
         )
     }
@@ -480,10 +563,8 @@ enum MediEvalRewardScoring {
 
     private static func baseReward(answer: EvalAnswer) -> (xp: Int, gold: Int) {
         switch answer {
-        case .yes, .no: return (10, 3)
-        case .unsure: return (6, 1)
-        case .badQuestion: return (8, 1)
-        case .skip: return (2, 0)
+        case .yes, .no, .unsure, .badQuestion: return (5, 1)
+        case .skip: return (0, 0)
         }
     }
 
