@@ -553,7 +553,7 @@ export class EvalFileStore {
     let visible = reviewState === 'all'
       ? cards
       : cards.filter((card) => !reviewed.has(text(card.cardId)));
-    visible = visible.filter((card) => !referenceSources.has(card.sourceKey));
+    visible = visible.filter((card) => !referenceSources.has(card.sourceKey) && !card.integrationRetiredAt);
     visible = visible.map((card) => ({ ...card, reviewRubric: { version: qualityState.settings.rubricVersion, text: qualityState.settings.rubric } }));
     if (reviewState !== 'all') {
       const automatic = await this.quality.automaticCard(context, cards.filter((c) => reviewed.has(c.cardId) && !referenceSources.has(c.sourceKey)).length);
@@ -570,7 +570,7 @@ export class EvalFileStore {
       pageSize,
       pageCount,
       total: visible.length,
-      unfilteredTotal: cards.filter((c) => !referenceSources.has(c.sourceKey)).length,
+      unfilteredTotal: cards.filter((c) => !referenceSources.has(c.sourceKey) && !c.integrationRetiredAt).length,
       reviewer: normalizedReviewer,
       reviewState,
     };
@@ -582,7 +582,7 @@ export class EvalFileStore {
     const results = await this.listResults({ projectId, batchId: normalizedBatchId });
     const quality = await this.quality.read({ projectId, batchId: normalizedBatchId });
     const referenceSources = new Set(quality.references.map((r) => r.card.sourceKey));
-    const productionCards = cards.filter((r) => !referenceSources.has(r.sourceKey));
+    const productionCards = cards.filter((r) => !referenceSources.has(r.sourceKey) && !r.integrationRetiredAt);
     const productionIds = new Set(productionCards.map((c) => c.cardId));
     const currentResults = results.filter((r) => productionIds.has(r.cardId) && (r.rubricVersion || '1') === quality.settings.rubricVersion);
     return {
@@ -608,6 +608,7 @@ export class EvalFileStore {
     if (!card) {
       throw Object.assign(new Error(`Unknown cardId: ${text(payload.cardId)}`), { status: 404 });
     }
+    if(card.integrationRetiredAt)throw Object.assign(new Error('This review was superseded. Refresh the batch.'),{status:409});
     const results = await this.listResults({ projectId, batchId: normalizedBatchId });
     const key = resultIdempotencyKey(payload);
     const existing = results.find((result) => resultIdempotencyKey(result) === key);

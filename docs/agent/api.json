@@ -8,6 +8,7 @@
     "successStatus": 200,
     "contentType": "application/json unless responseMediaTypes specifies exports",
     "authentication": {
+      "integration": "Operator-issued bearer token pinned to one project and integration. No account session or human judgment access. Origin headers are rejected.",
       "public": "No credentials; documentation and liveness only.",
       "account": "Verified email session cookie or signed set-auth-token bearer session. Cookie writes require same-origin Origin; supplied Origin must always match.",
       "shared-token": "Configured bearer token or x-eval-mobile-token; no independent account identity.",
@@ -18,9 +19,15 @@
       "eval-api": { "recommendedQuery": ["projectId", "batchId", "reviewer"], "note": "Defaults exist for compatibility; explicit context is recommended. Keep result body reviewer equal to query reviewer." }
     },
     "errors": { "400": "Invalid payload", "401": "Missing/invalid authentication", "403": "Access, publication, qualification, or Origin gate", "404": "Route/resource not available", "409": "Stale/conflicting state", "413": "Account JSON body exceeds 2 MB", "429": "Authentication rate limit", "500": "Server failure; outcome may be uncertain" },
-    "retryValues": { "read": "Repeat authorized read", "read-before-repeat": "Inspect durable state before repeating an uncertain mutation", "same-event-id": "Retry same persisted eventId and body; do not create a new ID", "refresh-on-conflict": "Refresh current evidence and reconsider on 409", "rate-limited": "Do not loop requests; respect provider/server rate limits" }
+    "retryValues": { "same-payload": "Retry the same immutable cards and policy with the same external batch key.", "read": "Repeat authorized read", "read-before-repeat": "Inspect durable state before repeating an uncertain mutation", "same-event-id": "Retry same persisted eventId and body; do not create a new ID", "refresh-on-conflict": "Refresh current evidence and reconsider on 409", "rate-limited": "Do not loop requests; respect provider/server rate limits" }
   },
   "operations": [
+    {"services": ["platform"], "auth": "integration", "sideEffects": [], "retry": "read", "id": "integration-preview", "method": "POST", "path": "/api/integrations/{integrationId}/batches/{externalKey}/preview", "responseFields": ["cardCount", "newCardCount", "cards"]},
+    {"services": ["platform"], "auth": "integration", "sideEffects": ["creates invited active batch", "imports immutable cards", "assigns configured existing verified reviewers as guests", "configures solo expert rubric once"], "retry": "same-payload", "id": "integration-import", "method": "PUT", "path": "/api/integrations/{integrationId}/batches/{externalKey}", "responseFields": ["batchId", "projectId", "totalCards", "reviewPath"]},
+    {"services": ["platform"], "auth": "integration", "sideEffects": [], "retry": "read", "id": "integration-batch", "method": "GET", "path": "/api/integrations/{integrationId}/batches/{externalKey}", "responseFields": ["batchId", "projectId", "status", "cards"]},
+    {"services": ["platform"], "auth": "integration", "sideEffects": [], "retry": "read", "id": "integration-results", "method": "GET", "path": "/api/integrations/{integrationId}/batches/{externalKey}/results", "responseFields": ["batchId", "projectId", "status", "labels"]},
+    {"services": ["platform"], "auth": "integration", "sideEffects": ["retires cards from decks and current labels; preserves history"], "retry": "same-payload", "id": "integration-retire", "method": "POST", "path": "/api/integrations/{integrationId}/batches/{externalKey}/retire", "responseFields": ["batchId", "retired"]},
+
     { "id": "health", "method": "GET", "path": "/healthz", "services": ["platform", "eval-api"], "auth": "public", "responseFields": ["ok", "service"], "sideEffects": [], "retry": "read" },
     { "id": "send-sign-in-code", "method": "POST", "path": "/api/auth/email-otp/send-verification-otp", "services": ["platform"], "auth": "public", "request": { "required": ["email", "type"], "fields": { "email": "email address", "type": "sign-in" } }, "responseFields": ["success"], "sideEffects": ["sends email", "rate-limit counters"], "retry": "rate-limited" },
     { "id": "sign-in", "method": "POST", "path": "/api/auth/sign-in/email-otp", "services": ["platform"], "auth": "public", "request": { "required": ["email", "otp"], "fields": { "email": "same address", "otp": "six-digit string", "name": "optional display name" } }, "responseFields": ["user", "token"], "responseHeaders": ["set-cookie", "set-auth-token"], "sideEffects": ["creates or verifies account", "creates session"], "retry": "rate-limited" },

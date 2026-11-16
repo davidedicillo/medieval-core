@@ -30,7 +30,8 @@
     "verify:xcode": "node scripts/verify-xcode-project.mjs",
     "simulator:smoke": "./scripts/xcode-simulator-smoke.sh",
     "simulator:demo-smoke": "MEDIEVAL_SIMULATOR_USE_LOCAL_DEMO=1 ./scripts/xcode-simulator-smoke.sh",
-    "preflight": "./scripts/preflight.sh"
+    "preflight": "./scripts/preflight.sh",
+    "integration:smoke": "node scripts/integration-bridge-smoke.mjs"
   },
   "dependencies": {
     "better-auth": "1.7.10",

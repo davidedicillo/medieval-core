@@ -13,6 +13,7 @@
     "game-service": { "optional": true, "purpose": "participation rewards and leaderboard; not label storage or reliability" }
   },
   "capabilities": [
+    {"id": "project-scoped-integrations", "implementation": "present", "services": ["platform"], "guide": "docs/INTEGRATION.md"},
     { "id": "account-workspaces", "implementation": "present", "services": ["platform"], "guide": "docs/WORKSPACES.md" },
     { "id": "imports-review-exports", "implementation": "present", "services": ["platform", "eval-api"], "guide": "docs/QUICKSTART.md" },
     { "id": "quality", "implementation": "present", "services": ["platform", "eval-api"], "scope": "batch-and-rubric-version", "calibrationDefault": "optional", "expertGateExemption": true, "guide": "docs/QUALITY.md" },
