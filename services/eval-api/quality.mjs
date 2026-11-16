@@ -8,7 +8,7 @@ const identity = (row) => normalizeReviewer(row.userId || row.reviewer);
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const productionCards = (cards, state) => {
   const sources = new Set(state.references.map((r) => r.card.sourceKey));
-  return cards.filter((c) => !sources.has(c.sourceKey));
+  return cards.filter((c) => !sources.has(c.sourceKey) && !c.integrationRetiredAt);
 };
 const defaults = {
   mode: 'solo', calibration: 'optional', rubricVersion: '1', rubric: '', expertReviewers: [],

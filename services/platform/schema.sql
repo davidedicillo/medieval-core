@@ -46,3 +46,9 @@ CREATE INDEX IF NOT EXISTS medieval_membership_user ON medieval_membership(user_
 CREATE INDEX IF NOT EXISTS medieval_invitation_email ON medieval_invitation(email);
 CREATE INDEX IF NOT EXISTS medieval_project_workspace ON medieval_project(workspace_id);
 CREATE INDEX IF NOT EXISTS medieval_batch_project ON medieval_batch(project_id);
+CREATE TABLE IF NOT EXISTS medieval_integration_batch (
+  batch_id TEXT PRIMARY KEY REFERENCES medieval_batch(id) ON DELETE CASCADE,
+  integration_id TEXT NOT NULL,
+  policy_digest TEXT NOT NULL,
+  ready BOOLEAN NOT NULL DEFAULT false
+);

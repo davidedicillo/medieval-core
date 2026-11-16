@@ -31,6 +31,7 @@ jobs:
       - run: npm run docs:check
       - run: npm run demo:web:smoke
       - run: npm run platform:smoke
+      - run: npm run integration:smoke
       - name: Build production platform image
         run: docker build -f services/platform/Dockerfile -t medieval-platform:ci .
 

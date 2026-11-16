@@ -13,6 +13,7 @@ import { previewCardsFromText, generateCardsFromRecords } from '../../packages/s
 import { resultsToCsv } from '../eval-api/store.mjs';
 import { qualityRequest } from '../eval-api/quality-routes.mjs';
 import { serveDocumentation } from '../documentation/server.mjs';
+import { createIntegrationBridge } from './integrations.mjs';
 
 function send(res, status, value, type = 'application/json; charset=utf-8') {
   res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer' });
@@ -37,7 +38,7 @@ function preview(body) {
     : previewCardsFromText(body.raw ?? '', { adapter: body.adapter, format: body.format });
 }
 
-export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataDir, mailer, appId = '' }) {
+export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataDir, mailer, appId = '', integrations = [] }) {
   const ownedPool = !pool;
   pool ??= new Pool({ connectionString: databaseUrl });
   const origin = new URL(baseURL).origin;
@@ -53,6 +54,7 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
       return stores.get(workspaceId);
     };
     const nodeAuthHandler = toNodeHandler(auth);
+    const integrationRequest = createIntegrationBridge({pool,access,storeFor,integrations});
     async function batchSummary(batch, userId) {
       const store = storeFor(batch.workspace_id);
       const ctx = { projectId: batch.project_id, batchId: batch.id, reviewer: userId };
@@ -102,6 +104,10 @@ export async function createPlatform({ pool, databaseUrl, baseURL, secret, dataD
         if (req.method === 'GET' && url.pathname === '/review') return send(res, 200, renderDemoReviewer({ accountMode: true }), 'text/html; charset=utf-8');
         if (req.method === 'GET' && url.pathname === '/quality') return send(res, 200, (await fs.readFile(new URL('../eval-api/quality.html', import.meta.url), 'utf8')).replace('data-account="false"', 'data-account="true"'), 'text/html; charset=utf-8');
         if (!url.pathname.startsWith('/api/')) return send(res, 404, { error: 'Not found.' });
+        if(url.pathname.startsWith('/api/integrations/')) {
+          const result=await integrationRequest({req,url,readBody});
+          return send(res,result?200:404,result||{error:'Not found.'});
+        }
         const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
         if (!session?.user?.emailVerified) fail(401, 'Sign in to continue.');
         const user = session.user;
@@ -245,6 +251,8 @@ export async function startPlatform(options = {}) {
     dataDir: options.dataDir ?? process.env.MEDIEVAL_EVAL_DATA_DIR ?? path.resolve('.runtime','platform'),
     mailer: options.mailer ?? createMailer({ local: localMail, smtpUrl: process.env.SMTP_URL, from: process.env.MAIL_FROM }),
     appId: process.env.MEDIEVAL_APP_ID ?? '',
+    integrations: options.integrations ?? (process.env.MEDIEVAL_INTEGRATIONS_FILE
+      ? JSON.parse(await fs.readFile(process.env.MEDIEVAL_INTEGRATIONS_FILE,'utf8')) : []),
   });
   try { await new Promise((resolve,reject) => { platform.server.once('error',reject); platform.server.listen(port,host,resolve); }); }
   catch (error) { await platform.close(); throw error; }

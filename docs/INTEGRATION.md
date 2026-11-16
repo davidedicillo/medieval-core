@@ -97,3 +97,13 @@ Run the full local app contract check:
 ```bash
 ./scripts/preflight.sh
 ```
+
+## Account-platform service integrations
+
+Operators can set `MEDIEVAL_INTEGRATIONS_FILE` to a private JSON file containing an array of `{id, tokenHash, projectId, ownerId, reviewerIds}`. Use a random bearer secret and store only its SHA-256 hexadecimal hash on the platform. IDs must refer to an existing project, its current manager, and verified reviewer accounts. The service rechecks manager access on every request. The token cannot sign in, create invitations, or submit human judgments. Integration calls reject browser Origin headers.
+
+Preview cards with `POST /api/integrations/{id}/batches/{externalKey}/preview`, then PUT the same path without `/preview` with `{name, description, rubric, rubricVersion, cards}`. Each request accepts 1–200 canonical cards. Batch identity is deterministic; identical retries append no duplicates. Existing card payloads and rubric policies are immutable: changed evidence needs a new card ID; changed policy needs a new batch key. Provisioning gives configured reviewers guest access to assigned batches only, uses solo expert review, and sends no email. Later imports preserve a manager's paused status. Run a single platform writer against the file store.
+
+Read `/results` for resolved labels and authenticated reviewer provenance. Do not treat unreviewed, unresolved or superseded labels as corrections. POST `/retire` with `{cardIds}` to remove superseded evidence from review decks and current labels without erasing its history. Publication and reviewer access are authorized by the integration's operator configuration; the producer must still preview actual cards before importing. There is no automatic master-data write.
+
+The bridge smoke test (`npm run integration:smoke`) exercises scope, real authenticated reviews, immutable retry, retirement and interrupted provisioning recovery against an isolated PostgreSQL database.

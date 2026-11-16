@@ -29,7 +29,7 @@ assert.deepEqual(schemas.$defs.Answer.enum, [...evalAnswerValues]);
 const operations = new Map(catalog.operations.map((o) => [o.id, o]));
 for (const op of catalog.operations) {
   assert(op.path.startsWith('/'), op.id);
-  assert(['GET', 'POST'].includes(op.method), op.id);
+  assert(['GET', 'POST', 'PUT'].includes(op.method), op.id);
   assert(catalog.conventions.authentication[op.auth], `Unknown auth: ${op.id}`);
   assert(catalog.conventions.retryValues[op.retry], `Unknown retry rule: ${op.id}`);
   if (op.requestSchema) assert(schemas.$defs[op.requestSchema], `Unknown schema: ${op.id}`);
